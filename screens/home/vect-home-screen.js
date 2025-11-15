@@ -15,14 +15,6 @@ class VectHomeScreen {
 
         return `
             <div class="pos-layout vect-theme">
-                <!-- Theme Switcher -->
-                <div class="theme-switcher">
-                    <button class="theme-btn" data-theme="evolution">Evolution</button>
-                    <button class="theme-btn" data-theme="restaurant">Restaurant</button>
-                    <button class="theme-btn" data-theme="oblivion">Oblivion</button>
-                    <button class="theme-btn active" data-theme="vect">Vect</button>
-                </div>
-
                 <!-- Header -->
                 <div class="vect-header">
                     <div class="vect-header-left">
@@ -63,12 +55,6 @@ class VectHomeScreen {
                             ${this.renderCartSummary()}
                         </div>
 
-                        <!-- Numpad -->
-                        <div class="vect-numpad">
-                            <div class="vect-numpad-grid" id="vect-numpad">
-                                ${this.renderNumpad()}
-                            </div>
-                        </div>
                     </div>
 
                     <!-- Content Area (Controls + Products) -->
@@ -237,35 +223,6 @@ class VectHomeScreen {
         `;
     }
 
-    renderNumpad() {
-        return `
-            <!-- Row 1: Customer button + 7, 8, 9, Backspace -->
-            <button class="vect-numpad-btn customer" data-action="customer">Customer</button>
-            <button class="vect-numpad-btn" data-number="7">7</button>
-            <button class="vect-numpad-btn" data-number="8">8</button>
-            <button class="vect-numpad-btn" data-number="9">9</button>
-            <button class="vect-numpad-btn action" data-action="backspace">⌫</button>
-            
-            <!-- Row 2-4: Payment button + numbers and functions -->
-            <button class="vect-numpad-btn payment" data-action="payment">Payment</button>
-            <button class="vect-numpad-btn" data-number="4">4</button>
-            <button class="vect-numpad-btn" data-number="5">5</button>
-            <button class="vect-numpad-btn" data-number="6">6</button>
-            <button class="vect-numpad-btn action" data-action="qty">Qty</button>
-            
-            <!-- Row 3 -->
-            <button class="vect-numpad-btn" data-number="1">1</button>
-            <button class="vect-numpad-btn" data-number="2">2</button>
-            <button class="vect-numpad-btn" data-number="3">3</button>
-            <button class="vect-numpad-btn action" data-action="disc">Disc</button>
-            
-            <!-- Row 4 -->
-            <button class="vect-numpad-btn" data-number="+/-">+/-</button>
-            <button class="vect-numpad-btn zero" data-number="0">0</button>
-            <button class="vect-numpad-btn" data-number=".">,</button>
-            <button class="vect-numpad-btn action" data-action="price">Price</button>
-        `;
-    }
 
     renderEmptyState() {
         return `
@@ -428,12 +385,6 @@ class VectHomeScreen {
             }
         });
 
-        // Numpad
-        document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('vect-numpad-btn')) {
-                this.handleNumpadInput(e.target.dataset.number);
-            }
-        });
     }
 
     handleThemeSwitch(theme, button) {
@@ -567,17 +518,6 @@ class VectHomeScreen {
         }
     }
 
-    handleNumpadInput(number) {
-        console.log('Numpad input:', number);
-        // Add visual feedback
-        const btn = document.querySelector(`[data-number="${number}"]`);
-        if (btn) {
-            btn.style.transform = 'scale(0.9)';
-            setTimeout(() => {
-                btn.style.transform = '';
-            }, 100);
-        }
-    }
 
     updateProductDisplay() {
         const productsGrid = document.getElementById('vect-products-grid');

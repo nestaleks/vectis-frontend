@@ -58,7 +58,7 @@ vectis-frontend/
 │   └── home/
 │       └── vect-home-screen.js  # Main POS interface
 ├── styles/                  # CSS styles
-│   └── vect-theme.css      # Complete Vectis theme
+│   └── main.css            # Complete application styles
 ├── index.html              # Main HTML file
 ├── package.json            # Project configuration
 └── README.md              # This file

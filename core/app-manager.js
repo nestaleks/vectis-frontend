@@ -52,7 +52,7 @@ class AppManager {
             // Load CSS
             const cssLink = document.createElement('link');
             cssLink.rel = 'stylesheet';
-            cssLink.href = './styles/vect-theme.css';
+            cssLink.href = './styles/main.css';
             document.head.appendChild(cssLink);
             
             // Load and initialize Vect home screen

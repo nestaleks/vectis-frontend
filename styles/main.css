@@ -1,3 +1,131 @@
+/* Base Reset and Global Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+    background: #ffffff;
+    overflow: hidden;
+    height: 100vh;
+}
+
+#app {
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Loading Screen */
+.loading-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #20B2AA 0%, #1A9A94 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    transition: opacity 0.5s ease-out;
+}
+
+.loading-screen.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.logo {
+    font-size: 3rem;
+    color: white;
+    margin-bottom: 1rem;
+}
+
+.app-name {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.02em;
+}
+
+.app-tagline {
+    font-size: 1.1rem;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 2rem;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top: 3px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.version {
+    position: absolute;
+    bottom: 2rem;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* Error Styles */
+.error-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #ef4444;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    text-align: center;
+    padding: 2rem;
+    display: none;
+}
+
+.error-screen h1 {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+}
+
+.error-screen p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+    margin-bottom: 2rem;
+    max-width: 500px;
+}
+
+.retry-btn {
+    background: white;
+    color: #ef4444;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.retry-btn:hover {
+    transform: scale(1.05);
+}
+
 /* Vect Theme - Clean Minimalist POS Design */
 /* Inspired by modern vector-based UI principles and pos-3.jpg */
 
@@ -535,87 +663,6 @@
     border-top: var(--vect-border-width) solid var(--vect-gray-200);
 }
 
-/* Numpad */
-.vect-numpad {
-    padding: var(--vect-spacing-3);
-    border-top: var(--vect-border-width) solid var(--vect-gray-200);
-}
-
-.vect-numpad-grid {
-    display: grid;
-    grid-template-columns: 3fr 1fr 1fr 1fr 1fr;
-    grid-template-rows: repeat(4, 1fr);
-    gap: var(--vect-spacing-1);
-    max-width: 350px;
-    height: 180px;
-}
-
-.vect-numpad-btn {
-    border: var(--vect-border-width) solid var(--vect-gray-300);
-    background: var(--vect-white);
-    border-radius: var(--vect-border-radius);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: var(--vect-font-size-sm);
-    font-weight: 500;
-    color: var(--vect-gray-900);
-    transition: all 0.2s ease-in-out;
-    min-height: 40px;
-}
-
-.vect-numpad-btn:hover {
-    border-color: var(--vect-primary);
-    background: var(--vect-gray-50);
-}
-
-.vect-numpad-btn:active {
-    transform: scale(0.95);
-}
-
-.vect-numpad-btn.customer {
-    grid-row: 1;
-    grid-column: 1;
-    background: var(--vect-primary);
-    color: var(--vect-white);
-    border-color: var(--vect-primary);
-    font-weight: 600;
-}
-
-.vect-numpad-btn.payment {
-    grid-row: 2 / 5;
-    grid-column: 1;
-    background: var(--vect-success);
-    color: var(--vect-white);
-    border-color: var(--vect-success);
-    font-weight: 600;
-    font-size: var(--vect-font-size-lg);
-    text-orientation: mixed;
-}
-
-.vect-numpad-btn.action {
-    background: var(--vect-gray-100);
-    color: var(--vect-gray-700);
-    border-color: var(--vect-gray-400);
-    font-size: var(--vect-font-size-xs);
-    font-weight: 600;
-}
-
-.vect-numpad-btn.action:hover {
-    background: var(--vect-gray-200);
-    border-color: var(--vect-gray-500);
-}
-
-.vect-numpad-btn.customer:hover {
-    background: var(--vect-primary-hover);
-    border-color: var(--vect-primary-hover);
-}
-
-.vect-numpad-btn.payment:hover {
-    background: #16a34a;
-    border-color: #16a34a;
-}
 
 /* Buttons */
 .vect-btn {
@@ -671,40 +718,6 @@
     width: 100%;
 }
 
-/* Theme Switcher */
-.theme-switcher {
-    position: fixed;
-    top: var(--vect-spacing-4);
-    right: var(--vect-spacing-4);
-    display: flex;
-    background: var(--vect-white);
-    border: var(--vect-border-width) solid var(--vect-gray-200);
-    border-radius: var(--vect-border-radius);
-    overflow: hidden;
-    box-shadow: var(--vect-shadow);
-    z-index: 1000;
-}
-
-.theme-btn {
-    padding: var(--vect-spacing-2) var(--vect-spacing-4);
-    border: none;
-    background: var(--vect-white);
-    cursor: pointer;
-    font-size: var(--vect-font-size-sm);
-    font-weight: 500;
-    color: var(--vect-gray-600);
-    transition: all 0.2s ease-in-out;
-}
-
-.theme-btn:hover {
-    background: var(--vect-gray-50);
-    color: var(--vect-gray-900);
-}
-
-.theme-btn.active {
-    background: var(--vect-primary);
-    color: var(--vect-white);
-}
 
 /* Empty State */
 .vect-empty-state {
