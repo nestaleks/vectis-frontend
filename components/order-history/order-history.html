@@ -1,0 +1,73 @@
+<div class="vect-order-history">
+    <div class="vect-order-history-header">
+        <h2 class="vect-page-title">Order History</h2>
+        <button class="vect-btn vect-btn-secondary" id="back-to-pos">
+            ← Back to POS
+        </button>
+    </div>
+
+    <div class="vect-order-history-filters">
+        <div class="vect-filter-group">
+            <label for="date-filter">Filter by date:</label>
+            <select id="date-filter" class="vect-select">
+                <option value="all">All time</option>
+                <option value="today">Today</option>
+                <option value="week">This week</option>
+                <option value="month">This month</option>
+            </select>
+        </div>
+        
+        <div class="vect-filter-group">
+            <label for="status-filter">Status:</label>
+            <select id="status-filter" class="vect-select">
+                <option value="all">All orders</option>
+                <option value="completed">Completed</option>
+                <option value="pending">Pending</option>
+                <option value="cancelled">Cancelled</option>
+            </select>
+        </div>
+
+        <div class="vect-search-group">
+            <input type="text" id="order-search" class="vect-search-input" placeholder="Search orders...">
+        </div>
+    </div>
+
+    <div class="vect-order-history-stats">
+        <div class="vect-stat-card">
+            <div class="vect-stat-value" id="total-orders">0</div>
+            <div class="vect-stat-label">Total Orders</div>
+        </div>
+        <div class="vect-stat-card">
+            <div class="vect-stat-value" id="total-revenue">€0.00</div>
+            <div class="vect-stat-label">Total Revenue</div>
+        </div>
+        <div class="vect-stat-card">
+            <div class="vect-stat-value" id="avg-order-value">€0.00</div>
+            <div class="vect-stat-label">Avg Order Value</div>
+        </div>
+    </div>
+
+    <div class="vect-order-history-content">
+        <div class="vect-order-history-left">
+            <div class="vect-order-history-list" id="order-history-list">
+                <!-- Orders will be dynamically populated here -->
+            </div>
+
+            <div class="vect-order-history-pagination">
+                <button id="prev-page" class="vect-btn vect-btn-secondary" disabled>Previous</button>
+                <span id="page-info">Page 1 of 1</span>
+                <button id="next-page" class="vect-btn vect-btn-secondary" disabled>Next</button>
+            </div>
+        </div>
+
+        <div class="vect-order-history-right">
+            <div class="vect-order-details-panel" id="order-details-panel">
+                <div class="vect-order-details-placeholder">
+                    <div class="vect-placeholder-icon">📋</div>
+                    <h3>Select an Order</h3>
+                    <p>Click on an order from the list to view its details</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

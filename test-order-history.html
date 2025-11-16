@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Order History</title>
+    <link rel="stylesheet" href="./styles/main.css">
+    <style>
+        body { margin: 0; padding: 20px; }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    
+    <script type="module">
+        import componentLoader from './components/base/component-loader.js';
+        import orderHistoryService from './services/order-history-service.js';
+        
+        async function loadOrderHistory() {
+            try {
+                console.log('Loading order history component...');
+                
+                const { component, element } = await componentLoader.createComponent('order-history', {}, {
+                    eventBus: { emit: () => {}, on: () => {} } // Mock event bus
+                });
+                
+                console.log('Component created:', component);
+                console.log('Element created:', element);
+                
+                const app = document.getElementById('app');
+                app.innerHTML = '';
+                app.appendChild(element);
+                
+                console.log('Order history loaded successfully!');
+                
+                // Add back to main button functionality
+                component.on('order-history:back-to-pos', () => {
+                    alert('Back to POS clicked!');
+                });
+                
+            } catch (error) {
+                console.error('Failed to load order history:', error);
+            }
+        }
+        
+        loadOrderHistory();
+    </script>
+</body>
+</html>

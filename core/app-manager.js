@@ -4,12 +4,14 @@ class AppManager {
         this.cartManager = null;
         this.currentScreen = null;
         this.isInitialized = false;
+        this.eventBus = null;
     }
 
     async init() {
         try {
             console.log('🚀 Initializing Vectis POS System...');
             
+            await this.initEventBus();
             await this.initStorageManager();
             await this.initCartManager();
             await this.loadVectTheme();
@@ -21,6 +23,11 @@ class AppManager {
             console.error('❌ Failed to initialize Vectis POS System:', error);
             this.showError('Failed to initialize system. Please refresh the page.');
         }
+    }
+
+    async initEventBus() {
+        const { default: EventBus } = await import('../services/event-bus.js');
+        this.eventBus = EventBus;
     }
 
     async initStorageManager() {

@@ -8,6 +8,10 @@ class VectHomeScreen {
         this.selectedCategory = 'all';
         this.searchQuery = '';
         this.products = [];
+        this.showingCustomization = false;
+        this.customizationProduct = null;
+        this.confirmedOrders = [];
+        this.isProcessingOrder = false; // Prevent double-clicks
     }
 
     async render() {
@@ -55,6 +59,11 @@ class VectHomeScreen {
                             ${this.renderCartSummary()}
                         </div>
 
+                        <!-- Order Confirmation -->
+                        <div class="vect-order-actions">
+                            ${this.renderOrderActions()}
+                        </div>
+
                     </div>
 
                     <!-- Content Area (Controls + Products) -->
@@ -93,7 +102,7 @@ class VectHomeScreen {
                         <!-- Products Area -->
                         <div class="vect-products">
                             <div class="vect-products-header">
-                                <h2 class="vect-category-title" id="vect-category-title">Fresh Fruits</h2>
+                                <h2 class="vect-category-title" id="vect-category-title">All Menu</h2>
                                 <div class="vect-products-stats" id="vect-products-stats">
                                     ${this.renderProductsStats()}
                                 </div>
@@ -111,9 +120,8 @@ class VectHomeScreen {
 
     renderOrderTabs() {
         const tabs = [
-            { id: 'current', name: 'Current Order', badge: this.currentOrder.length },
-            { id: 'orders', name: 'Orders', badge: 3 },
-            { id: 'receipts', name: 'Receipts', badge: 0 }
+            { id: 'current', name: 'Order Items', badge: this.currentOrder.length },
+            { id: 'orders', name: 'Orders', badge: this.confirmedOrders.length }
         ];
 
         return tabs.map(tab => `
@@ -128,11 +136,13 @@ class VectHomeScreen {
     renderCategories() {
         const categories = [
             { id: 'all', name: 'All', icon: '📦' },
-            { id: 'fruits', name: 'Fruits', icon: '🍎' },
-            { id: 'beverages', name: 'Drinks', icon: '🥤' },
-            { id: 'snacks', name: 'Snacks', icon: '🍪' },
-            { id: 'dairy', name: 'Dairy', icon: '🥛' },
-            { id: 'bakery', name: 'Bakery', icon: '🍞' }
+            { id: 'pizza', name: 'Pizza', icon: '🍕' },
+            { id: 'white-pizza', name: 'White Pizza', icon: '🧀' },
+            { id: 'salads', name: 'Salads', icon: '🥗' },
+            { id: 'desserts', name: 'Desserts', icon: '🍰' },
+            { id: 'hot-drinks', name: 'Hot Drinks', icon: '☕' },
+            { id: 'cold-drinks', name: 'Cold Drinks', icon: '🥤' },
+            { id: 'alcohol', name: 'Alcohol', icon: '🍷' }
         ];
 
         return categories.map(category => `
@@ -149,6 +159,11 @@ class VectHomeScreen {
     }
 
     renderProducts() {
+        // Show customization view if active
+        if (this.showingCustomization && this.customizationProduct) {
+            return this.renderPizzaCustomization(this.customizationProduct);
+        }
+
         const filteredProducts = this.filterProducts();
         
         if (filteredProducts.length === 0) {
@@ -191,11 +206,23 @@ class VectHomeScreen {
                 <div class="vect-cart-item-image"></div>
                 <div class="vect-cart-item-info">
                     <div class="vect-cart-item-name">${item.name}</div>
-                    <div class="vect-cart-item-price">€${item.price.toFixed(2)}</div>
+                    ${item.modifiers && item.modifiers.length > 0 ? `
+                        <div class="vect-cart-item-modifiers">
+                            ${item.modifiers.map(mod => `<span class="vect-modifier">+${mod.name}</span>`).join(', ')}
+                        </div>
+                    ` : ''}
+                    <div class="vect-cart-item-price">€${(item.basePrice || item.price).toFixed(2)}</div>
+                    ${item.modifiers && item.modifiers.length > 0 ? `
+                        <div class="vect-cart-item-total">Total: €${(item.itemTotal || item.price * item.quantity).toFixed(2)}</div>
+                    ` : ''}
+                    <button class="vect-remove-btn" data-action="remove" data-item-index="${index}" title="Remove from cart">
+                        <span class="vect-remove-icon">🗑️</span>
+                        <span class="vect-remove-text">Remove</span>
+                    </button>
                 </div>
-                <div class="vect-cart-item-quantity">
+                <div class="vect-cart-item-controls">
                     <button class="vect-quantity-btn" data-action="decrease" data-item-index="${index}">-</button>
-                    <span class="vect-quantity-value">${item.quantity}</span>
+                    <input type="number" class="vect-quantity-input" value="${item.quantity}" min="1" data-item-index="${index}" />
                     <button class="vect-quantity-btn" data-action="increase" data-item-index="${index}">+</button>
                 </div>
             </div>
@@ -223,6 +250,19 @@ class VectHomeScreen {
         `;
     }
 
+    renderOrderActions() {
+        if (this.currentOrder.length === 0) {
+            return '';
+        }
+
+        return `
+            <button class="vect-confirm-order-btn" data-action="confirm-order">
+                <span class="vect-confirm-icon">✓</span>
+                <span class="vect-confirm-text">Confirm Order</span>
+            </button>
+        `;
+    }
+
 
     renderEmptyState() {
         return `
@@ -236,6 +276,12 @@ class VectHomeScreen {
 
     async loadProducts() {
         try {
+            // Load confirmed orders from localStorage
+            const savedOrders = localStorage.getItem('vect_confirmed_orders');
+            if (savedOrders) {
+                this.confirmedOrders = JSON.parse(savedOrders);
+            }
+
             // Clear old products from storage to prevent category conflicts
             localStorage.removeItem('pos_products');
             
@@ -244,52 +290,77 @@ class VectHomeScreen {
             if (storedProducts && storedProducts.length > 0) {
                 this.products = storedProducts;
             } else {
-                // Default Vect theme products with temporary images
+                // Pizzeria menu with categories
                 this.products = [
-                    // Fruits
-                    { id: 1, name: 'Black Grapes', price: 4.90, category: 'fruits', image: 'https://images.unsplash.com/photo-1537640538966-79f369143f8f?w=300&q=80' },
-                    { id: 2, name: 'Bon Oranges', price: 1.98, category: 'fruits', image: 'https://images.unsplash.com/photo-1580052614034-c55d20bfee3b?w=300&q=80' },
-                    { id: 3, name: 'Conference Pears', price: 2.70, category: 'fruits', image: 'https://images.unsplash.com/photo-1518685101044-dea3c4e48eaf?w=300&q=80' },
-                    { id: 4, name: 'Golden Apples Peeled', price: 3.97, category: 'fruits', image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=300&q=80' },
-                    { id: 5, name: 'Granny Smith Apples', price: 2.99, category: 'fruits', image: 'https://images.unsplash.com/photo-1568702846914-96b305d2aaeb?w=300&q=80' },
-                    { id: 6, name: 'Jonagold Apples', price: 2.10, category: 'fruits', image: 'https://images.unsplash.com/photo-1567306226416-28f0efdc88ce?w=300&q=80' },
-                    { id: 7, name: 'Lemon', price: 1.49, category: 'fruits', image: 'https://images.unsplash.com/photo-1587486913049-53fc88980cfc?w=300&q=80' },
-                    { id: 8, name: 'Orange Butterfly', price: 7.43, category: 'fruits', image: 'https://images.unsplash.com/photo-1611080626919-7cf5a9dbab5b?w=300&q=80' },
-                    { id: 9, name: 'Peach', price: 2.70, category: 'fruits', image: 'https://images.unsplash.com/photo-1629828874514-d68a47acbf8e?w=300&q=80' },
-                    { id: 10, name: 'Peaches', price: 5.40, category: 'fruits', image: 'https://images.unsplash.com/photo-1558254651-6bd361c44c11?w=300&q=80' },
-                    { id: 11, name: 'Red Grapefruit', price: 1.98, category: 'fruits', image: 'https://images.unsplash.com/photo-1570197788417-0e82375c9371?w=300&q=80' },
-                    { id: 12, name: 'Bananas', price: 3.19, category: 'fruits', image: 'https://images.unsplash.com/photo-1603833665858-e61d17a86224?w=300&q=80' },
-                    { id: 13, name: 'Strawberries', price: 4.50, category: 'fruits', image: 'https://images.unsplash.com/photo-1543528176-61b239494933?w=300&q=80' },
-                    { id: 14, name: 'Kiwi', price: 2.20, category: 'fruits', image: 'https://images.unsplash.com/photo-1585059895524-72359e06133a?w=300&q=80' },
+                    // Pizza
+                    { id: 1, name: 'Margherita', price: 12.90, category: 'pizza', image: 'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=300&q=80' },
+                    { id: 2, name: 'Pepperoni', price: 15.50, category: 'pizza', image: 'https://images.unsplash.com/photo-1628840042765-356cda07504e?w=300&q=80' },
+                    { id: 3, name: 'Quattro Stagioni', price: 17.80, category: 'pizza', image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=300&q=80' },
+                    { id: 4, name: 'Diavola', price: 16.20, category: 'pizza', image: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=300&q=80' },
+                    { id: 5, name: 'Capricciosa', price: 18.50, category: 'pizza', image: 'https://images.unsplash.com/photo-1604382355076-af4b0eb5d2c4?w=300&q=80' },
+                    { id: 6, name: 'Marinara', price: 11.90, category: 'pizza', image: 'https://images.unsplash.com/photo-1506280754576-f6fa8a873550?w=300&q=80' },
+                    { id: 7, name: 'Prosciutto e Funghi', price: 17.20, category: 'pizza', image: 'https://images.unsplash.com/photo-1571407970349-bc81e7e96d47?w=300&q=80' },
+                    { id: 8, name: 'Quattro Formaggi', price: 19.80, category: 'pizza', image: 'https://images.unsplash.com/photo-1593560708920-61dd98c46a4e?w=300&q=80' },
                     
-                    // Beverages
-                    { id: 15, name: 'Fresh Orange Juice', price: 3.50, category: 'beverages', image: 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=300&q=80' },
-                    { id: 16, name: 'Sparkling Water', price: 1.20, category: 'beverages', image: 'https://images.unsplash.com/photo-1523362628745-0c100150b504?w=300&q=80' },
-                    { id: 17, name: 'Coffee', price: 2.80, category: 'beverages', image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=300&q=80' },
-                    { id: 18, name: 'Green Tea', price: 2.50, category: 'beverages', image: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=300&q=80' },
-                    { id: 19, name: 'Cola', price: 1.80, category: 'beverages', image: 'https://images.unsplash.com/photo-1629203851122-3726ecdf080e?w=300&q=80' },
-                    { id: 20, name: 'Energy Drink', price: 3.20, category: 'beverages', image: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=300&q=80' },
+                    // White Pizza
+                    { id: 9, name: 'Bianca Tradizionale', price: 14.50, category: 'white-pizza', image: 'https://images.unsplash.com/photo-1540071719381-3c634a4a2ca8?w=300&q=80' },
+                    { id: 10, name: 'Bianca con Salsiccia', price: 18.90, category: 'white-pizza', image: 'https://images.unsplash.com/photo-1610207715542-bb0419e19fca?w=300&q=80' },
+                    { id: 11, name: 'Bianca con Spinaci', price: 16.80, category: 'white-pizza', image: 'https://images.unsplash.com/photo-1585238342024-78d387f4a707?w=300&q=80' },
+                    { id: 12, name: 'Bianca Mortadella e Pistacchi', price: 21.50, category: 'white-pizza', image: 'https://images.unsplash.com/photo-1571997478779-2adcbbe9ab2f?w=300&q=80' },
+                    { id: 13, name: 'Bianca con Bresaola', price: 22.80, category: 'white-pizza', image: 'https://images.unsplash.com/photo-1594007654729-407eedc4be65?w=300&q=80' },
+                    { id: 14, name: 'Bianca Parmigiana', price: 19.20, category: 'white-pizza', image: 'https://images.unsplash.com/photo-1528137871618-79d2761e3fd5?w=300&q=80' },
+                    { id: 15, name: 'Bianca con Burrata', price: 24.90, category: 'white-pizza', image: 'https://images.unsplash.com/photo-1579952363873-27d3bfad9c0d?w=300&q=80' },
+                    { id: 16, name: 'Bianca Tartufo', price: 28.50, category: 'white-pizza', image: 'https://images.unsplash.com/photo-1606750718050-0b0e52295ba7?w=300&q=80' },
                     
-                    // Snacks
-                    { id: 21, name: 'Chocolate Chips', price: 2.99, category: 'snacks', image: 'https://images.unsplash.com/photo-1511381939415-e44015466834?w=300&q=80' },
-                    { id: 22, name: 'Nuts Mix', price: 4.50, category: 'snacks', image: 'https://images.unsplash.com/photo-1508747235053-6ecbcf805994?w=300&q=80' },
-                    { id: 23, name: 'Potato Chips', price: 1.99, category: 'snacks', image: 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=300&q=80' },
-                    { id: 24, name: 'Granola Bar', price: 2.20, category: 'snacks', image: 'https://images.unsplash.com/photo-1590736969955-71cc94901144?w=300&q=80' },
-                    { id: 25, name: 'Cookies', price: 3.10, category: 'snacks', image: 'https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=300&q=80' },
+                    // Salads
+                    { id: 17, name: 'Caesar Salad', price: 9.50, category: 'salads', image: 'https://images.unsplash.com/photo-1551248429-40975aa4de74?w=300&q=80' },
+                    { id: 18, name: 'Greek Salad', price: 8.80, category: 'salads', image: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=300&q=80' },
+                    { id: 19, name: 'Caprese Salad', price: 12.90, category: 'salads', image: 'https://images.unsplash.com/photo-1608897013039-887f21d8c804?w=300&q=80' },
+                    { id: 20, name: 'Arugula Salad', price: 10.50, category: 'salads', image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=300&q=80' },
+                    { id: 21, name: 'Mixed Green Salad', price: 7.80, category: 'salads', image: 'https://images.unsplash.com/photo-1505576391880-b3f9d713dc4f?w=300&q=80' },
+                    { id: 22, name: 'Quinoa Salad', price: 11.20, category: 'salads', image: 'https://images.unsplash.com/photo-1505253213348-cd54c92b37ed?w=300&q=80' },
+                    { id: 23, name: 'Tuna Salad', price: 13.50, category: 'salads', image: 'https://images.unsplash.com/photo-1546793665-c74683f339c1?w=300&q=80' },
+                    { id: 24, name: 'Chicken Salad', price: 12.80, category: 'salads', image: 'https://images.unsplash.com/photo-1604909052743-94e838986d24?w=300&q=80' },
                     
-                    // Dairy
-                    { id: 26, name: 'Fresh Milk', price: 1.85, category: 'dairy', image: 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=300&q=80' },
-                    { id: 27, name: 'Greek Yogurt', price: 3.20, category: 'dairy', image: 'https://images.unsplash.com/photo-1571212515416-fcc4de3a21a8?w=300&q=80' },
-                    { id: 28, name: 'Cheese', price: 4.50, category: 'dairy', image: 'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=300&q=80' },
-                    { id: 29, name: 'Butter', price: 2.80, category: 'dairy', image: 'https://images.unsplash.com/photo-1589985270826-4b7bb135bc9d?w=300&q=80' },
-                    { id: 30, name: 'Cream', price: 2.40, category: 'dairy', image: 'https://images.unsplash.com/photo-1563379091339-03246963d29a?w=300&q=80' },
+                    // Desserts
+                    { id: 25, name: 'Tiramisu', price: 6.50, category: 'desserts', image: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=300&q=80' },
+                    { id: 26, name: 'Panna Cotta', price: 5.80, category: 'desserts', image: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=300&q=80' },
+                    { id: 27, name: 'Gelato Siciliano', price: 4.20, category: 'desserts', image: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=300&q=80' },
+                    { id: 28, name: 'Cannoli Siciliani', price: 7.90, category: 'desserts', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=300&q=80' },
+                    { id: 29, name: 'Chocolate Lava Cake', price: 6.90, category: 'desserts', image: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=300&q=80' },
+                    { id: 30, name: 'Cheesecake', price: 5.90, category: 'desserts', image: 'https://images.unsplash.com/photo-1533134242443-d4fd215305ad?w=300&q=80' },
+                    { id: 31, name: 'Apple Strudel', price: 4.80, category: 'desserts', image: 'https://images.unsplash.com/photo-1549007908-56e169d60ad5?w=300&q=80' },
+                    { id: 32, name: 'Profiteroles', price: 7.50, category: 'desserts', image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=300&q=80' },
                     
-                    // Bakery
-                    { id: 31, name: 'Fresh Bread', price: 2.40, category: 'bakery', image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=300&q=80' },
-                    { id: 32, name: 'Croissant', price: 1.75, category: 'bakery', image: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=300&q=80' },
-                    { id: 33, name: 'Bagel', price: 1.50, category: 'bakery', image: 'https://images.unsplash.com/photo-1551106652-a5bcf4b29ab6?w=300&q=80' },
-                    { id: 34, name: 'Muffin', price: 2.20, category: 'bakery', image: 'https://images.unsplash.com/photo-1607958996333-41aef7caefaa?w=300&q=80' },
-                    { id: 35, name: 'Donut', price: 1.90, category: 'bakery', image: 'https://images.unsplash.com/photo-1551024506-0bccd828d307?w=300&q=80' }
+                    // Hot Drinks
+                    { id: 33, name: 'Espresso', price: 2.20, category: 'hot-drinks', image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=300&q=80' },
+                    { id: 34, name: 'Cappuccino', price: 3.50, category: 'hot-drinks', image: 'https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=300&q=80' },
+                    { id: 35, name: 'Latte', price: 4.20, category: 'hot-drinks', image: 'https://images.unsplash.com/photo-1561882468-9110e03e0f78?w=300&q=80' },
+                    { id: 36, name: 'Hot Chocolate', price: 4.80, category: 'hot-drinks', image: 'https://images.unsplash.com/photo-1542990253-a781e04c0082?w=300&q=80' },
+                    { id: 37, name: 'Green Tea', price: 3.20, category: 'hot-drinks', image: 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=300&q=80' },
+                    { id: 38, name: 'Earl Grey Tea', price: 3.50, category: 'hot-drinks', image: 'https://images.unsplash.com/photo-1597318181409-cf85222c0e95?w=300&q=80' },
+                    { id: 39, name: 'Chamomile Tea', price: 3.20, category: 'hot-drinks', image: 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=300&q=80' },
+                    { id: 40, name: 'Macchiato', price: 3.80, category: 'hot-drinks', image: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=300&q=80' },
+                    
+                    // Cold Drinks
+                    { id: 41, name: 'Coca Cola', price: 3.50, category: 'cold-drinks', image: 'https://images.unsplash.com/photo-1629203851122-3726ecdf080e?w=300&q=80' },
+                    { id: 42, name: 'Fresh Orange Juice', price: 4.80, category: 'cold-drinks', image: 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=300&q=80' },
+                    { id: 43, name: 'Lemonade', price: 4.20, category: 'cold-drinks', image: 'https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=300&q=80' },
+                    { id: 44, name: 'Iced Tea', price: 3.80, category: 'cold-drinks', image: 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=300&q=80' },
+                    { id: 45, name: 'Sparkling Water', price: 2.50, category: 'cold-drinks', image: 'https://images.unsplash.com/photo-1523362628745-0c100150b504?w=300&q=80' },
+                    { id: 46, name: 'Mineral Water', price: 2.20, category: 'cold-drinks', image: 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=300&q=80' },
+                    { id: 47, name: 'Iced Coffee', price: 4.50, category: 'cold-drinks', image: 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=300&q=80' },
+                    { id: 48, name: 'Energy Drink', price: 4.80, category: 'cold-drinks', image: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=300&q=80' },
+                    
+                    // Alcohol (bottles only, low alcohol)
+                    { id: 49, name: 'Heineken Beer 0.33L', price: 4.20, category: 'alcohol', image: 'https://images.unsplash.com/photo-1608270586620-248524c67de9?w=300&q=80' },
+                    { id: 50, name: 'Corona Extra 0.33L', price: 4.50, category: 'alcohol', image: 'https://images.unsplash.com/photo-1571613316887-6f8d5cbf7ef7?w=300&q=80' },
+                    { id: 51, name: 'Stella Artois 0.33L', price: 4.80, category: 'alcohol', image: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?w=300&q=80' },
+                    { id: 52, name: 'Peroni Nastro Azzurro 0.33L', price: 4.30, category: 'alcohol', image: 'https://images.unsplash.com/photo-1618885472179-5ac593f2c531?w=300&q=80' },
+                    { id: 53, name: 'Moretti Beer 0.33L', price: 4.00, category: 'alcohol', image: 'https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=300&q=80' },
+                    { id: 54, name: 'Prosecco Bottle 0.75L', price: 18.50, category: 'alcohol', image: 'https://images.unsplash.com/photo-1547595628-c61a29f496f0?w=300&q=80' },
+                    { id: 55, name: 'White Wine 0.75L', price: 16.80, category: 'alcohol', image: 'https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?w=300&q=80' },
+                    { id: 56, name: 'Red Wine 0.75L', price: 17.20, category: 'alcohol', image: 'https://images.unsplash.com/photo-1474722883778-792e7990302f?w=300&q=80' }
                 ];
             }
         } catch (error) {
@@ -360,12 +431,25 @@ class VectHomeScreen {
             }
         });
 
-        // Cart quantity controls
+        // Cart quantity controls and remove button
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('vect-quantity-btn')) {
                 const action = e.target.dataset.action;
                 const index = parseInt(e.target.dataset.itemIndex);
                 this.handleQuantityChange(action, index);
+            } else if (e.target.classList.contains('vect-remove-btn') || e.target.closest('.vect-remove-btn')) {
+                const button = e.target.classList.contains('vect-remove-btn') ? e.target : e.target.closest('.vect-remove-btn');
+                const index = parseInt(button.dataset.itemIndex);
+                this.handleItemRemove(index);
+            }
+        });
+
+        // Quantity input field handling
+        document.addEventListener('change', (e) => {
+            if (e.target.classList.contains('vect-quantity-input')) {
+                const index = parseInt(e.target.dataset.itemIndex);
+                const newQuantity = parseInt(e.target.value) || 1;
+                this.handleQuantityInputChange(index, newQuantity);
             }
         });
 
@@ -380,8 +464,28 @@ class VectHomeScreen {
 
         // Action buttons
         document.addEventListener('click', (e) => {
-            if (e.target.dataset.action) {
-                this.handleAction(e.target.dataset.action);
+            // Check for direct data-action or parent with data-action
+            let actionElement = e.target;
+            let action = actionElement.dataset.action;
+            
+            // If no action on direct target, check parent elements
+            if (!action) {
+                actionElement = e.target.closest('[data-action]');
+                action = actionElement ? actionElement.dataset.action : null;
+            }
+            
+            if (action) {
+                console.log('Action triggered:', action, 'on element:', actionElement); // Debug log
+                e.preventDefault();
+                e.stopPropagation();
+                this.handleAction(action);
+            }
+        });
+
+        // Ingredient selection for pizza customization
+        document.addEventListener('change', (e) => {
+            if (e.target.type === 'checkbox' && e.target.name === 'ingredient' && this.showingCustomization) {
+                this.handleIngredientSelection(e.target);
             }
         });
 
@@ -411,13 +515,10 @@ class VectHomeScreen {
         // Handle tab functionality
         switch (tabId) {
             case 'current':
-                this.showMessage('Current order selected', 'info');
+                this.showMessage('Order items view', 'info');
                 break;
             case 'orders':
-                this.showMessage('Orders history', 'info');
-                break;
-            case 'receipts':
-                this.showMessage('Receipts view', 'info');
+                this.showOrderHistory();
                 break;
         }
     }
@@ -432,12 +533,14 @@ class VectHomeScreen {
         
         // Update category title
         const categoryNames = {
-            'all': 'All Products',
-            'fruits': 'Fresh Fruits', 
-            'beverages': 'Beverages',
-            'snacks': 'Snacks',
-            'dairy': 'Dairy Products',
-            'bakery': 'Bakery'
+            'all': 'All Menu',
+            'pizza': 'Traditional Pizza',
+            'white-pizza': 'White Pizza',
+            'salads': 'Fresh Salads',
+            'desserts': 'Desserts',
+            'hot-drinks': 'Hot Drinks',
+            'cold-drinks': 'Cold Drinks',
+            'alcohol': 'Alcoholic Beverages'
         };
         
         const titleElement = document.getElementById('vect-category-title');
@@ -458,7 +561,16 @@ class VectHomeScreen {
             }, 150);
         }
         
-        // Add to cart
+        // Get full product details
+        const fullProduct = this.products.find(p => p.id === product.id);
+        
+        // Check if product is pizza and show customization view
+        if (fullProduct && (fullProduct.category === 'pizza' || fullProduct.category === 'white-pizza')) {
+            this.showPizzaCustomization(fullProduct);
+            return;
+        }
+        
+        // Add to cart normally for non-pizza items
         const existingItem = this.currentOrder.find(item => item.id === product.id);
         if (existingItem) {
             existingItem.quantity += 1;
@@ -480,13 +592,197 @@ class VectHomeScreen {
         if (action === 'increase') {
             item.quantity += 1;
         } else if (action === 'decrease') {
-            item.quantity -= 1;
-            if (item.quantity <= 0) {
-                this.currentOrder.splice(index, 1);
+            if (item.quantity > 1) {
+                item.quantity -= 1;
             }
         }
         
         this.updateCartDisplay();
+    }
+
+    handleQuantityInputChange(index, newQuantity) {
+        if (index < 0 || index >= this.currentOrder.length) return;
+        if (newQuantity < 1) newQuantity = 1;
+        
+        const item = this.currentOrder[index];
+        item.quantity = newQuantity;
+        
+        this.updateCartDisplay();
+    }
+
+    handleItemRemove(index) {
+        if (index < 0 || index >= this.currentOrder.length) return;
+        
+        this.currentOrder.splice(index, 1);
+        this.updateCartDisplay();
+        this.showMessage('Item removed from cart', 'info');
+    }
+
+    showPizzaCustomization(pizza) {
+        this.showingCustomization = true;
+        this.customizationProduct = pizza;
+        this.selectedModifiers = [];
+        this.updateProductDisplay();
+    }
+
+    hidePizzaCustomization() {
+        this.showingCustomization = false;
+        this.customizationProduct = null;
+        this.selectedModifiers = [];
+        this.updateProductDisplay();
+    }
+
+    renderPizzaCustomization(pizza) {
+        // Define available ingredients
+        const availableIngredients = [
+            { id: 1, name: 'Extra Mozzarella', price: 2.50 },
+            { id: 2, name: 'Pepperoni', price: 3.00 },
+            { id: 3, name: 'Mushrooms', price: 2.00 },
+            { id: 4, name: 'Bell Peppers', price: 2.00 },
+            { id: 5, name: 'Red Onions', price: 1.50 },
+            { id: 6, name: 'Olives', price: 2.50 },
+            { id: 7, name: 'Tomatoes', price: 2.00 },
+            { id: 8, name: 'Basil', price: 1.50 },
+            { id: 9, name: 'Prosciutto', price: 4.00 },
+            { id: 10, name: 'Salami', price: 3.50 },
+            { id: 11, name: 'Arugula', price: 2.00 },
+            { id: 12, name: 'Parmesan', price: 3.00 }
+        ];
+
+        if (!this.selectedModifiers) {
+            this.selectedModifiers = [];
+        }
+
+        const currentTotal = pizza.price + this.selectedModifiers.reduce((sum, mod) => sum + mod.price, 0);
+
+        return `
+            <div class="pizza-customization-view">
+                <div class="pizza-customization-header">
+                    <h2>Customize ${pizza.name}</h2>
+                    <button class="pizza-back-btn" data-action="back-to-products">← Back to Menu</button>
+                </div>
+                
+                <div class="pizza-customization-content">
+                    <div class="pizza-image-section">
+                        <img src="${pizza.image}" alt="${pizza.name}" class="pizza-image" />
+                        <div class="pizza-base-price">Base Price: €${pizza.price.toFixed(2)}</div>
+                    </div>
+                    
+                    <div class="pizza-ingredients-section">
+                        <h3>Additional Ingredients</h3>
+                        <div class="ingredients-grid">
+                            ${availableIngredients.map(ingredient => `
+                                <div class="ingredient-item" data-ingredient-id="${ingredient.id}">
+                                    <label class="ingredient-checkbox">
+                                        <input type="checkbox" name="ingredient" value="${ingredient.id}" 
+                                               ${this.selectedModifiers.some(mod => mod.id === ingredient.id) ? 'checked' : ''} />
+                                        <span class="checkmark"></span>
+                                        <span class="ingredient-name">${ingredient.name}</span>
+                                        <span class="ingredient-price">+€${ingredient.price.toFixed(2)}</span>
+                                    </label>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pizza-customization-footer">
+                    <div class="pizza-total">
+                        <span>Total: €<span id="pizza-total-amount">${currentTotal.toFixed(2)}</span></span>
+                    </div>
+                    <div class="pizza-actions">
+                        <button class="pizza-cancel-btn" data-action="back-to-products">Cancel</button>
+                        <button class="pizza-add-btn" data-action="add-custom-pizza">Add to Cart</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    addCustomPizzaToCart() {
+        if (!this.customizationProduct || !this.selectedModifiers) return;
+        
+        const total = this.customizationProduct.price + this.selectedModifiers.reduce((sum, mod) => sum + mod.price, 0);
+        
+        const customizedPizza = {
+            id: this.customizationProduct.id,
+            name: this.customizationProduct.name,
+            basePrice: this.customizationProduct.price,
+            price: this.customizationProduct.price,
+            itemTotal: total,
+            quantity: 1,
+            modifiers: this.selectedModifiers,
+            category: this.customizationProduct.category,
+            image: this.customizationProduct.image
+        };
+
+        this.currentOrder.push(customizedPizza);
+        this.updateCartDisplay();
+        
+        const modifierNames = this.selectedModifiers.length > 0 ? ` with ${this.selectedModifiers.map(m => m.name).join(', ')}` : '';
+        this.showMessage(`Added ${this.customizationProduct.name}${modifierNames} to cart`, 'success');
+        
+        // Return to product view
+        this.hidePizzaCustomization();
+    }
+
+    handleIngredientSelection(checkbox) {
+        const availableIngredients = [
+            { id: 1, name: 'Extra Mozzarella', price: 2.50 },
+            { id: 2, name: 'Pepperoni', price: 3.00 },
+            { id: 3, name: 'Mushrooms', price: 2.00 },
+            { id: 4, name: 'Bell Peppers', price: 2.00 },
+            { id: 5, name: 'Red Onions', price: 1.50 },
+            { id: 6, name: 'Olives', price: 2.50 },
+            { id: 7, name: 'Tomatoes', price: 2.00 },
+            { id: 8, name: 'Basil', price: 1.50 },
+            { id: 9, name: 'Prosciutto', price: 4.00 },
+            { id: 10, name: 'Salami', price: 3.50 },
+            { id: 11, name: 'Arugula', price: 2.00 },
+            { id: 12, name: 'Parmesan', price: 3.00 }
+        ];
+
+        const ingredientId = parseInt(checkbox.value);
+        const ingredient = availableIngredients.find(ing => ing.id === ingredientId);
+        
+        if (!this.selectedModifiers) {
+            this.selectedModifiers = [];
+        }
+
+        if (checkbox.checked) {
+            if (!this.selectedModifiers.some(mod => mod.id === ingredientId)) {
+                this.selectedModifiers.push(ingredient);
+            }
+        } else {
+            this.selectedModifiers = this.selectedModifiers.filter(mod => mod.id !== ingredientId);
+        }
+
+        // Update total price display
+        const currentTotal = this.customizationProduct.price + this.selectedModifiers.reduce((sum, mod) => sum + mod.price, 0);
+        const totalElement = document.getElementById('pizza-total-amount');
+        if (totalElement) {
+            totalElement.textContent = currentTotal.toFixed(2);
+        }
+    }
+
+    addCustomizedPizzaToCart(pizza, modifiers, total) {
+        const customizedPizza = {
+            id: pizza.id,
+            name: pizza.name,
+            basePrice: pizza.price,
+            price: pizza.price,
+            itemTotal: total,
+            quantity: 1,
+            modifiers: modifiers,
+            category: pizza.category,
+            image: pizza.image
+        };
+
+        this.currentOrder.push(customizedPizza);
+        this.updateCartDisplay();
+        
+        const modifierNames = modifiers.length > 0 ? ` with ${modifiers.map(m => m.name).join(', ')}` : '';
+        this.showMessage(`Added ${pizza.name}${modifierNames} to cart`, 'success');
     }
 
     handleAction(action) {
@@ -515,6 +811,94 @@ class VectHomeScreen {
             case 'close-session':
                 this.showMessage('Session closed', 'info');
                 break;
+            case 'back-to-products':
+                this.hidePizzaCustomization();
+                break;
+            case 'add-custom-pizza':
+                this.addCustomPizzaToCart();
+                break;
+            case 'confirm-order':
+                this.confirmOrder();
+                break;
+        }
+    }
+
+    confirmOrder() {
+        console.log('confirmOrder called, current order length:', this.currentOrder.length, 'isProcessing:', this.isProcessingOrder); // Debug log
+        
+        // Prevent double clicks
+        if (this.isProcessingOrder) {
+            console.log('Order already being processed, ignoring click'); // Debug log
+            return;
+        }
+        
+        if (this.currentOrder.length === 0) {
+            this.showMessage('Cart is empty', 'warning');
+            return;
+        }
+
+        // Set processing flag
+        this.isProcessingOrder = true;
+        console.log('Setting isProcessingOrder to true'); // Debug log
+
+        console.log('Current order items:', this.currentOrder); // Debug log
+
+        // Calculate order totals
+        const subtotal = this.currentOrder.reduce((sum, item) => {
+            const itemPrice = item.itemTotal || item.price * item.quantity;
+            return sum + itemPrice;
+        }, 0);
+        const tax = subtotal * 0.21;
+        const total = subtotal + tax;
+
+        console.log('Order totals - Subtotal:', subtotal, 'Tax:', tax, 'Total:', total); // Debug log
+
+        // Create order object
+        const order = {
+            id: Date.now(), // Simple ID generation
+            date: new Date().toISOString(),
+            items: [...this.currentOrder], // Deep copy of items
+            subtotal: subtotal,
+            tax: tax,
+            total: total,
+            status: 'confirmed',
+            customer: 'Walk-in Customer'
+        };
+
+        console.log('Created order object:', order); // Debug log
+
+        // Add to confirmed orders list
+        this.confirmedOrders.push(order);
+        console.log('Total confirmed orders:', this.confirmedOrders.length); // Debug log
+
+        // Save to localStorage for persistence
+        localStorage.setItem('vect_confirmed_orders', JSON.stringify(this.confirmedOrders));
+        console.log('Saved orders to localStorage'); // Debug log
+
+        // Clear current order
+        this.currentOrder = [];
+        console.log('Cleared current order'); // Debug log
+
+        // Update displays
+        this.updateCartDisplay();
+        this.updateOrderTabsDisplay();
+        console.log('Updated displays'); // Debug log
+
+        // Show success message
+        this.showMessage(`Order #${order.id} confirmed successfully!`, 'success');
+        console.log('Showed success message'); // Debug log
+        
+        // Reset processing flag after a short delay
+        setTimeout(() => {
+            this.isProcessingOrder = false;
+            console.log('Reset isProcessingOrder to false'); // Debug log
+        }, 1000);
+    }
+
+    updateOrderTabsDisplay() {
+        const orderTabs = document.getElementById('vect-order-tabs');
+        if (orderTabs) {
+            orderTabs.innerHTML = this.renderOrderTabs();
         }
     }
 
@@ -543,6 +927,12 @@ class VectHomeScreen {
         const cartSummary = document.querySelector('.vect-cart-summary');
         if (cartSummary) {
             cartSummary.innerHTML = this.renderCartSummary();
+        }
+
+        // Update order actions
+        const orderActions = document.querySelector('.vect-order-actions');
+        if (orderActions) {
+            orderActions.innerHTML = this.renderOrderActions();
         }
         
         // Update cart count
@@ -581,6 +971,33 @@ class VectHomeScreen {
             this.updateCartDisplay();
             this.showMessage(`Payment successful! Total: €${total.toFixed(2)}`, 'success');
         }, 1500);
+    }
+
+    showOrderHistory() {
+        // Load order history component dynamically
+        import('../../components/base/component-loader.js')
+            .then(({ default: componentLoader }) => {
+                return componentLoader.createComponent('order-history', {}, {
+                    eventBus: this.app.eventBus
+                });
+            })
+            .then(({ component, element }) => {
+                // Replace current content with order history
+                const mainContainer = document.getElementById('app');
+                if (mainContainer) {
+                    mainContainer.innerHTML = '';
+                    mainContainer.appendChild(element);
+                    
+                    // Handle back to POS event
+                    component.on('order-history:back-to-pos', () => {
+                        this.app.loadVectTheme(); // Reload main POS view
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Failed to load order history:', error);
+                this.showMessage('Failed to load order history', 'error');
+            });
     }
 
     showMessage(text, type = 'info') {
