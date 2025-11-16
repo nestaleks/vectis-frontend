@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vectis POS - Modern Point of Sale System</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛒</text></svg>">
+    
+    <!-- Meta Tags -->
+    <meta name="description" content="Vectis - Modern Point of Sale System with clean design and intuitive interface">
+    <meta name="author" content="Vectis Team">
+    
+    <!-- Preload critical resources -->
+    <link rel="preload" href="./styles/main.css" as="style">
+    
+    <!-- Application Styles -->
+    <link rel="stylesheet" href="./styles/main.css">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading" class="loading-screen">
+        <div class="logo">🛒</div>
+        <h1 class="app-name">Vectis</h1>
+        <p class="app-tagline">Modern Point of Sale System</p>
+        <div class="loading-spinner"></div>
+        <div class="version">v1.0.0</div>
+    </div>
+    
+    <!-- Error Screen -->
+    <div id="error" class="error-screen">
+        <h1>System Error</h1>
+        <p>Failed to load Vectis POS System. Please check your connection and try again.</p>
+        <button class="retry-btn" onclick="window.location.reload()">Retry</button>
+    </div>
+    
+    <!-- Main Application -->
+    <div id="app"></div>
+    
+    <!-- Application Script -->
+    <script type="module">
+        let app;
+        
+        async function initializeApp() {
+            try {
+                console.log('🚀 Starting Vectis POS System...');
+                
+                // Import and initialize the app manager
+                const { default: AppManager } = await import('./core/app-manager.js');
+                app = new AppManager();
+                
+                // Initialize the application
+                await app.init();
+                
+                // Hide loading screen
+                setTimeout(() => {
+                    const loading = document.getElementById('loading');
+                    loading.classList.add('hidden');
+                    setTimeout(() => loading.remove(), 500);
+                }, 1000);
+                
+                console.log('✅ Vectis POS System loaded successfully');
+                
+            } catch (error) {
+                console.error('❌ Failed to initialize Vectis POS System:', error);
+                
+                // Show error screen
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'flex';
+            }
+        }
+        
+        // Start the application
+        document.addEventListener('DOMContentLoaded', initializeApp);
+        
+        // Global error handling
+        window.addEventListener('error', (event) => {
+            console.error('Global error:', event.error);
+        });
+        
+        // Unhandled promise rejection handling
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('Unhandled promise rejection:', event.reason);
+        });
+        
+        // Expose app for debugging
+        window.vectisApp = () => app;
+    </script>
+</body>
+</html>

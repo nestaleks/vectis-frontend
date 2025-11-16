@@ -1,0 +1,52 @@
+{
+  "name": "vectis-frontend",
+  "version": "1.0.0",
+  "description": "Vectis - Modern Point of Sale System Frontend with clean design and intuitive interface",
+  "main": "index.html",
+  "type": "module",
+  "scripts": {
+    "dev": "python -m http.server 3000",
+    "serve": "python -m http.server 8080",
+    "start": "npm run serve",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "lint": "eslint . --ext .js",
+    "format": "prettier --write ."
+  },
+  "keywords": [
+    "pos",
+    "point-of-sale",
+    "retail",
+    "vectis",
+    "modern",
+    "frontend",
+    "javascript",
+    "css",
+    "flexbox",
+    "responsive"
+  ],
+  "author": "Vectis Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nestaleks/vectis-frontend.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nestaleks/vectis-frontend/issues"
+  },
+  "homepage": "https://github.com/nestaleks/vectis-frontend#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "eslint": "^8.55.0",
+    "prettier": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ]
+}
