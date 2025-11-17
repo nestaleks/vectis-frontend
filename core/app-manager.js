@@ -2,6 +2,8 @@ class AppManager {
     constructor() {
         this.storageManager = null;
         this.cartManager = null;
+        this.orderManager = null;
+        this.modalManager = null;
         this.currentScreen = null;
         this.isInitialized = false;
         this.eventBus = null;
@@ -14,7 +16,9 @@ class AppManager {
             await this.initEventBus();
             await this.initStorageManager();
             await this.initCartManager();
-            await this.loadVectTheme();
+            await this.initOrderManager();
+            await this.initModalManager();
+            await this.loadOrdersListTheme();
             
             this.isInitialized = true;
             console.log('✅ Vectis POS System initialized successfully');
@@ -52,9 +56,19 @@ class AppManager {
         };
     }
 
-    async loadVectTheme() {
+    async initOrderManager() {
+        const { default: OrderManager } = await import('../managers/order-manager.js');
+        this.orderManager = OrderManager.getInstance();
+    }
+
+    async initModalManager() {
+        const { default: ModalManager } = await import('../components/modals/modal-manager.js');
+        this.modalManager = ModalManager.getInstance();
+    }
+
+    async loadOrdersListTheme() {
         try {
-            console.log('🎨 Loading Vect theme...');
+            console.log('🎨 Loading Orders List theme...');
             
             // Load CSS
             const cssLink = document.createElement('link');
@@ -62,24 +76,29 @@ class AppManager {
             cssLink.href = './styles/main.css';
             document.head.appendChild(cssLink);
             
-            // Load and initialize Vect home screen
-            const { default: VectHomeScreen } = await import('../screens/home/vect-home-screen.js');
-            this.currentScreen = new VectHomeScreen(this);
+            // Load and initialize Orders List screen
+            const { default: OrdersListScreen } = await import('../screens/orders/orders-list-screen.js');
+            this.currentScreen = new OrdersListScreen(this);
             
             // Render the screen
             const mainContainer = document.getElementById('app');
             if (mainContainer) {
                 mainContainer.innerHTML = await this.currentScreen.render();
                 await this.currentScreen.afterRender();
-                console.log('✅ Vect theme loaded successfully');
+                console.log('✅ Orders List screen loaded successfully');
             } else {
                 throw new Error('Main container #app not found');
             }
             
         } catch (error) {
-            console.error('❌ Failed to load Vect theme:', error);
+            console.error('❌ Failed to load Orders List screen:', error);
             throw error;
         }
+    }
+
+    // Legacy method for backward compatibility
+    async loadVectTheme() {
+        return this.loadOrdersListTheme();
     }
 
     // Getter methods for screen components
@@ -89,6 +108,14 @@ class AppManager {
 
     getCartManager() {
         return this.cartManager;
+    }
+
+    getOrderManager() {
+        return this.orderManager;
+    }
+
+    getModalManager() {
+        return this.modalManager;
     }
 
     // Error handling
