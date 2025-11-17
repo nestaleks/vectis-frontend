@@ -237,6 +237,76 @@ class OrderManager {
     }
 
     /**
+     * Create sample orders for testing (development only)
+     */
+    createSampleData() {
+        if (this.orders.length > 0) return; // Don't create if data already exists
+
+        const sampleOrders = [
+            {
+                customer: 'John Smith',
+                phone: '+1234567890',
+                email: 'john@example.com',
+                items: [
+                    { name: 'Margherita Pizza', price: 12.99, quantity: 2, description: '30cm, thin crust' },
+                    { name: 'Caesar Salad', price: 8.50, quantity: 1, description: 'Fresh romaine, parmesan, croutons' },
+                    { name: 'Coca-Cola', price: 2.50, quantity: 2, description: '330ml can' }
+                ],
+                notes: 'Extra cheese on pizza, dressing on the side for salad',
+                status: 'confirmed'
+            },
+            {
+                customer: 'Maria Garcia',
+                phone: '+1987654321',
+                items: [
+                    { name: 'Pepperoni Pizza', price: 14.99, quantity: 1, description: '40cm, thick crust' },
+                    { name: 'Garlic Bread', price: 5.99, quantity: 1, description: '4 pieces with herbs' }
+                ],
+                notes: 'Ready for pickup at 6:30 PM',
+                status: 'preparing'
+            },
+            {
+                customer: 'David Wilson',
+                address: '123 Main St, City',
+                items: [
+                    { name: 'Hawaiian Pizza', price: 13.99, quantity: 1, description: '30cm, pineapple & ham' },
+                    { name: 'Buffalo Wings', price: 9.99, quantity: 1, description: '8 pieces, hot sauce' },
+                    { name: 'Sprite', price: 2.50, quantity: 1, description: '330ml can' }
+                ],
+                status: 'ready'
+            },
+            {
+                customer: 'Sarah Johnson',
+                phone: '+1122334455',
+                email: 'sarah@example.com',
+                items: [
+                    { name: 'Vegetarian Pizza', price: 11.99, quantity: 1, description: '30cm, bell peppers, olives, mushrooms' },
+                    { name: 'Greek Salad', price: 7.99, quantity: 1, description: 'Feta cheese, olives, cucumber' }
+                ],
+                notes: 'Vegan cheese substitute requested',
+                status: 'completed'
+            },
+            {
+                customer: 'Walk-in Customer',
+                items: [
+                    { name: 'Quattro Stagioni', price: 15.99, quantity: 1, description: '40cm, four seasons toppings' }
+                ],
+                status: 'pending'
+            }
+        ];
+
+        // Create the sample orders with different dates
+        sampleOrders.forEach((orderData, index) => {
+            const date = new Date();
+            date.setHours(date.getHours() - (index * 2)); // Space orders 2 hours apart
+            orderData.date = date.toISOString();
+            this.createOrder(orderData);
+        });
+
+        console.log('✅ Sample order data created for testing');
+    }
+
+    /**
      * Get order statistics
      */
     getOrderStats() {

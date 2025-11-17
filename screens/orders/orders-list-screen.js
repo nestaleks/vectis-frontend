@@ -205,7 +205,7 @@ class OrdersListScreen {
         };
 
         return `
-            <div class="order-row" data-order-id="${order.id}">
+            <div class="order-row" data-order-id="${order.id}" data-action="view-order" style="cursor: pointer;">
                 <div class="table-cell">
                     <div class="order-id">#${order.id.toString().padStart(3, '0')}</div>
                 </div>
@@ -397,7 +397,7 @@ class OrdersListScreen {
                 await this.handleNewOrder();
                 break;
             case 'view-order':
-                if (orderId) this.viewOrderDetails(orderId);
+                if (orderId) await this.viewOrderDetails(orderId);
                 break;
             case 'edit-order':
                 if (orderId) await this.editOrder(orderId);
@@ -435,14 +435,29 @@ class OrdersListScreen {
         }
     }
 
-    viewOrderDetails(orderId) {
+    async viewOrderDetails(orderId) {
         const order = this.orderManager.getOrderById(orderId);
-        if (!order) return;
+        if (!order) {
+            this.showMessage('Order not found', 'error');
+            return;
+        }
 
-        // Create a detailed view modal or expand the row
-        console.log('View order details for:', order);
-        // TODO: Implement order details modal
-        this.showMessage(`Viewing order #${orderId}`, 'info');
+        try {
+            // Import OrderDetailsModal dynamically
+            const { default: OrderDetailsModal } = await import('../../components/modals/order-details-modal.js');
+            
+            // Register modal if not already registered
+            if (!this.modalManager.modals.has('order-details')) {
+                const orderDetailsModal = new OrderDetailsModal(this.app);
+                this.modalManager.register('order-details', orderDetailsModal);
+            }
+            
+            // Open modal with order details
+            await this.modalManager.open('order-details', { orderId });
+        } catch (error) {
+            console.error('Failed to open order details modal:', error);
+            this.showMessage('Failed to open order details', 'error');
+        }
     }
 
     async editOrder(orderId) {

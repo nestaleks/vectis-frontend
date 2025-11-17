@@ -59,6 +59,9 @@ class AppManager {
     async initOrderManager() {
         const { default: OrderManager } = await import('../managers/order-manager.js');
         this.orderManager = OrderManager.getInstance();
+        
+        // Create sample data for testing
+        this.orderManager.createSampleData();
     }
 
     async initModalManager() {

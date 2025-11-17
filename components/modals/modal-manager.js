@@ -40,52 +40,62 @@ class ModalManager {
     /**
      * Open a modal by ID
      */
-    open(modalId, options = {}) {
+    async open(modalId, options = {}) {
         const modal = this.modals.get(modalId);
         if (!modal) {
             console.warn(`Modal with ID "${modalId}" not found`);
             return false;
         }
 
-        // Store currently focused element
-        this.focusedElementBeforeModal = document.activeElement;
+        try {
+            // Store currently focused element
+            this.focusedElementBeforeModal = document.activeElement;
 
-        // Close previous modal if exists
-        if (this.activeModal) {
-            this.modalStack.push(this.activeModal);
+            // Close previous modal if exists
+            if (this.activeModal) {
+                this.modalStack.push(this.activeModal);
+            }
+
+            // Create modal overlay if it doesn't exist
+            let overlay = document.getElementById('modal-overlay');
+            if (!overlay) {
+                overlay = this.createOverlay();
+            }
+
+            // Set up modal content
+            const modalContainer = overlay.querySelector('.modal-container');
+            modalContainer.innerHTML = '';
+            
+            // Create modal content (handle async render)
+            const modalContent = await this.createModalContent(modal, options);
+            modalContainer.appendChild(modalContent);
+
+            // Show overlay
+            overlay.style.display = 'flex';
+            document.body.classList.add('modal-open');
+
+            // Set active modal
+            this.activeModal = { id: modalId, modal, options };
+
+            // Call afterRender if modal has this method
+            if (typeof modal.afterRender === 'function') {
+                await modal.afterRender();
+            }
+
+            // Add event listeners
+            this.addEventListeners();
+
+            // Focus management
+            this.setInitialFocus(modalContent);
+
+            // Trigger modal events
+            this.triggerEvent('modal:opened', { modalId, options });
+
+            return true;
+        } catch (error) {
+            console.error('Error opening modal:', error);
+            return false;
         }
-
-        // Create modal overlay if it doesn't exist
-        let overlay = document.getElementById('modal-overlay');
-        if (!overlay) {
-            overlay = this.createOverlay();
-        }
-
-        // Set up modal content
-        const modalContainer = overlay.querySelector('.modal-container');
-        modalContainer.innerHTML = '';
-        
-        // Create modal content
-        const modalContent = this.createModalContent(modal, options);
-        modalContainer.appendChild(modalContent);
-
-        // Show overlay
-        overlay.style.display = 'flex';
-        document.body.classList.add('modal-open');
-
-        // Set active modal
-        this.activeModal = { id: modalId, modal, options };
-
-        // Add event listeners
-        this.addEventListeners();
-
-        // Focus management
-        this.setInitialFocus(modalContent);
-
-        // Trigger modal events
-        this.triggerEvent('modal:opened', { modalId, options });
-
-        return true;
     }
 
     /**
@@ -194,7 +204,7 @@ class ModalManager {
     /**
      * Create modal content element
      */
-    createModalContent(modal, options) {
+    async createModalContent(modal, options) {
         const content = document.createElement('div');
         content.className = 'modal-content';
 
@@ -209,7 +219,7 @@ class ModalManager {
 
         // Add modal component content
         if (typeof modal.render === 'function') {
-            const modalHtml = modal.render(options);
+            const modalHtml = await modal.render(options);
             const wrapper = document.createElement('div');
             wrapper.innerHTML = modalHtml;
             content.appendChild(wrapper);
