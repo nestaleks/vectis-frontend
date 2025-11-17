@@ -562,7 +562,7 @@ class OrderCreationScreen {
         }
 
         // Action buttons
-        document.addEventListener('click', (e) => {
+        document.addEventListener('click', async (e) => {
             // Check for direct data-action or parent with data-action
             let actionElement = e.target;
             let action = actionElement.dataset.action;
@@ -577,7 +577,7 @@ class OrderCreationScreen {
                 console.log('Action triggered:', action, 'on element:', actionElement); // Debug log
                 e.preventDefault();
                 e.stopPropagation();
-                this.handleAction(action);
+                await this.handleAction(action);
             }
         });
 
@@ -945,7 +945,7 @@ class OrderCreationScreen {
         this.showMessage(`Added ${pizza.name}${modifierNames} to cart`, 'success');
     }
 
-    handleAction(action) {
+    async handleAction(action) {
         switch (action) {
             case 'checkout':
             case 'payment':
