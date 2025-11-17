@@ -145,6 +145,60 @@ class AppManager {
         document.body.appendChild(errorDiv);
     }
 
+    // Navigation methods
+    async navigateToScreen(screenName, options = {}) {
+        try {
+            let screen;
+            const mainContainer = document.getElementById('app');
+            
+            if (!mainContainer) {
+                throw new Error('Main container #app not found');
+            }
+
+            switch (screenName) {
+                case 'orders-list':
+                    const { default: OrdersListScreen } = await import('../screens/orders/orders-list-screen.js');
+                    screen = new OrdersListScreen(this, options);
+                    break;
+                    
+                case 'order-creation':
+                    const { default: OrderCreationScreen } = await import('../screens/orders/order-creation-screen.js');
+                    screen = new OrderCreationScreen(this, options);
+                    break;
+                    
+                default:
+                    throw new Error(`Unknown screen: ${screenName}`);
+            }
+
+            // Clean up current screen
+            if (this.currentScreen && typeof this.currentScreen.destroy === 'function') {
+                this.currentScreen.destroy();
+            }
+
+            // Set new screen
+            this.currentScreen = screen;
+            
+            // Render new screen
+            mainContainer.innerHTML = await screen.render();
+            
+            // Initialize screen
+            if (typeof screen.afterRender === 'function') {
+                await screen.afterRender();
+            }
+
+            console.log(`✅ Navigated to ${screenName} screen`);
+            
+        } catch (error) {
+            console.error(`❌ Failed to navigate to ${screenName}:`, error);
+            throw error;
+        }
+    }
+
+    async navigateBack() {
+        // Default back navigation - go to orders list
+        await this.navigateToScreen('orders-list');
+    }
+
     // System info
     getSystemInfo() {
         return {

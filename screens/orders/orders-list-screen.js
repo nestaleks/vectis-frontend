@@ -418,20 +418,11 @@ class OrdersListScreen {
 
     async handleNewOrder() {
         try {
-            // Import OrderModal dynamically
-            const { default: OrderModal } = await import('../../components/modals/order-modal.js');
-            
-            // Register modal if not already registered
-            if (!this.modalManager.modals.has('new-order')) {
-                const orderModal = new OrderModal(this.app);
-                this.modalManager.register('new-order', orderModal);
-            }
-            
-            // Open modal
-            this.modalManager.open('new-order');
+            // Navigate to order creation screen
+            await this.app.navigateToScreen('order-creation', { mode: 'create' });
         } catch (error) {
-            console.error('Failed to open new order modal:', error);
-            this.showMessage('Failed to open order creation window', 'error');
+            console.error('Failed to navigate to order creation screen:', error);
+            this.showMessage('Failed to open order creation screen', 'error');
         }
     }
 
@@ -462,18 +453,11 @@ class OrdersListScreen {
 
     async editOrder(orderId) {
         try {
-            const { default: OrderModal } = await import('../../components/modals/order-modal.js');
-            
-            if (!this.modalManager.modals.has('edit-order')) {
-                const orderModal = new OrderModal(this.app);
-                this.modalManager.register('edit-order', orderModal);
-            }
-            
-            // Open modal with existing order data
-            this.modalManager.open('edit-order', { orderId, mode: 'edit' });
+            // Navigate to order creation screen in edit mode
+            await this.app.navigateToScreen('order-creation', { mode: 'edit', orderId });
         } catch (error) {
-            console.error('Failed to open edit order modal:', error);
-            this.showMessage('Failed to open order editing window', 'error');
+            console.error('Failed to navigate to order editing screen:', error);
+            this.showMessage('Failed to open order editing screen', 'error');
         }
     }
 

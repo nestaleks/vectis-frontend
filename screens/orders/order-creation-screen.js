@@ -38,9 +38,14 @@ class OrderCreationScreen {
                 <!-- Header -->
                 <div class="vect-header">
                     <div class="vect-header-left">
-                        <div class="vect-logo">Odoo</div>
+                        <button class="back-to-orders-btn" data-action="back-to-orders" aria-label="Back to Orders">
+                            ← Back to Orders
+                        </button>
+                        <div class="vect-logo">Vectis POS</div>
                         <div class="vect-user-info">
-                            <span style="font-size: 0.875rem; color: var(--vect-gray-600);">Administrator</span>
+                            <span style="font-size: 0.875rem; color: var(--vect-gray-600);">
+                                ${this.mode === 'edit' ? `Editing Order ${this.data.orderId ? '#' + this.data.orderId : ''}` : 'New Order'}
+                            </span>
                         </div>
                     </div>
                     
@@ -492,6 +497,13 @@ class OrderCreationScreen {
     }
 
     setupEventListeners() {
+        // Back to orders navigation
+        document.addEventListener('click', (e) => {
+            if (e.target.dataset.action === 'back-to-orders') {
+                this.handleBackToOrders();
+            }
+        });
+
         // Theme switching
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('theme-btn')) {
@@ -1038,13 +1050,17 @@ class OrderCreationScreen {
 
         console.log('Created order object:', order); // Debug log
 
-        // Add to confirmed orders list
-        this.confirmedOrders.push(order);
-        console.log('Total confirmed orders:', this.confirmedOrders.length); // Debug log
-
-        // Save to localStorage for persistence
-        localStorage.setItem('vect_confirmed_orders', JSON.stringify(this.confirmedOrders));
-        console.log('Saved orders to localStorage'); // Debug log
+        // Save order using OrderManager
+        const orderManager = this.app.getOrderManager();
+        if (orderManager) {
+            orderManager.createOrder(order);
+            console.log('Saved order via OrderManager'); // Debug log
+        } else {
+            // Fallback to old method
+            this.confirmedOrders.push(order);
+            localStorage.setItem('vect_confirmed_orders', JSON.stringify(this.confirmedOrders));
+            console.log('Saved orders to localStorage (fallback)'); // Debug log
+        }
 
         // Clear current order
         this.currentOrder = [];
@@ -1059,11 +1075,20 @@ class OrderCreationScreen {
         this.showMessage(`Order #${order.id} confirmed successfully!`, 'success');
         console.log('Showed success message'); // Debug log
         
-        // Reset processing flag after a short delay
-        setTimeout(() => {
+        // Reset processing flag and navigate back to orders after delay
+        setTimeout(async () => {
             this.isProcessingOrder = false;
             console.log('Reset isProcessingOrder to false'); // Debug log
-        }, 1000);
+            
+            // Navigate back to orders list if not in modal mode
+            if (!this.isModal) {
+                try {
+                    await this.app.navigateBack();
+                } catch (error) {
+                    console.error('Failed to navigate back after order creation:', error);
+                }
+            }
+        }, 1500);
     }
 
     updateOrderTabsDisplay() {
@@ -1214,6 +1239,43 @@ class OrderCreationScreen {
             notification.style.animation = 'vectSlideIn 0.3s ease-out reverse';
             setTimeout(() => notification.remove(), 300);
         }, 3000);
+    }
+
+    /**
+     * Handle back to orders navigation
+     */
+    async handleBackToOrders() {
+        // Check if there are unsaved changes
+        if (this.currentOrder.length > 0) {
+            const confirmed = confirm('You have items in your cart. Are you sure you want to go back? All unsaved changes will be lost.');
+            if (!confirmed) {
+                return;
+            }
+        }
+
+        try {
+            // Navigate back to orders list
+            await this.app.navigateBack();
+        } catch (error) {
+            console.error('Failed to navigate back to orders list:', error);
+            this.showMessage('Failed to return to orders list', 'error');
+        }
+    }
+
+    /**
+     * Cleanup method for proper navigation
+     */
+    destroy() {
+        // Clear any active intervals or listeners
+        this.isProcessingOrder = false;
+        this.showingCustomization = false;
+        
+        // Clear current order if not saved
+        if (this.mode === 'create') {
+            this.currentOrder = [];
+        }
+        
+        console.log('OrderCreationScreen destroyed');
     }
 }
 
