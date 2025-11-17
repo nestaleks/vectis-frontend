@@ -53,11 +53,6 @@ class OrdersListScreen {
                     </div>
                 </div>
 
-                <!-- Statistics -->
-                <div class="orders-stats">
-                    ${this.renderOrderStats()}
-                </div>
-
                 <!-- Controls -->
                 <div class="orders-controls">
                     <div class="orders-controls-left">
@@ -126,45 +121,6 @@ class OrdersListScreen {
         }
     }
 
-    renderOrderStats() {
-        const stats = this.orderManager.getOrderStats();
-        
-        return `
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-icon">📊</div>
-                    <div class="stat-content">
-                        <div class="stat-number">${stats.total}</div>
-                        <div class="stat-label">Total Orders</div>
-                    </div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-icon">⏳</div>
-                    <div class="stat-content">
-                        <div class="stat-number">${stats.pending + stats.confirmed + stats.preparing}</div>
-                        <div class="stat-label">Active Orders</div>
-                    </div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-icon">✅</div>
-                    <div class="stat-content">
-                        <div class="stat-number">${stats.completed}</div>
-                        <div class="stat-label">Completed Today</div>
-                    </div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-icon">💰</div>
-                    <div class="stat-content">
-                        <div class="stat-number">€${stats.totalRevenue.toFixed(2)}</div>
-                        <div class="stat-label">Total Revenue</div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
 
     renderOrdersList() {
         if (this.filteredOrders.length === 0) {
@@ -518,7 +474,6 @@ class OrdersListScreen {
     refreshOrders() {
         this.loadOrders().then(() => {
             this.updateOrdersList();
-            this.updateStats();
         });
     }
 
@@ -542,12 +497,6 @@ class OrdersListScreen {
         }
     }
 
-    updateStats() {
-        const statsContainer = document.querySelector('.orders-stats');
-        if (statsContainer) {
-            statsContainer.innerHTML = this.renderOrderStats();
-        }
-    }
 
     showMessage(text, type = 'info') {
         // Create notification
