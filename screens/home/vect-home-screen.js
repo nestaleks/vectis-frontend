@@ -486,6 +486,8 @@ class VectHomeScreen {
         document.addEventListener('change', (e) => {
             if (e.target.type === 'checkbox' && e.target.name === 'ingredient' && this.showingCustomization) {
                 this.handleIngredientSelection(e.target);
+            } else if (e.target.type === 'radio' && e.target.name === 'pizza-size' && this.showingCustomization) {
+                this.handleSizeSelection(e.target);
             }
         });
 
@@ -622,6 +624,7 @@ class VectHomeScreen {
         this.showingCustomization = true;
         this.customizationProduct = pizza;
         this.selectedModifiers = [];
+        this.selectedPizzaSize = { id: '30cm', name: '30cm (Standard)', multiplier: 1.0 }; // Default size
         this.updateProductDisplay();
     }
 
@@ -629,6 +632,7 @@ class VectHomeScreen {
         this.showingCustomization = false;
         this.customizationProduct = null;
         this.selectedModifiers = [];
+        this.selectedPizzaSize = null;
         this.updateProductDisplay();
     }
 
@@ -649,11 +653,23 @@ class VectHomeScreen {
             { id: 12, name: 'Parmesan', price: 3.00 }
         ];
 
+        // Define pizza sizes with price multipliers
+        const availableSizes = [
+            { id: '30cm', name: '30cm (Standard)', multiplier: 1.0 },
+            { id: '40cm', name: '40cm (Large)', multiplier: 1.5 }
+        ];
+
         if (!this.selectedModifiers) {
             this.selectedModifiers = [];
         }
 
-        const currentTotal = pizza.price + this.selectedModifiers.reduce((sum, mod) => sum + mod.price, 0);
+        if (!this.selectedPizzaSize) {
+            this.selectedPizzaSize = availableSizes[0]; // Default to 30cm
+        }
+
+        const basePrice = pizza.price * this.selectedPizzaSize.multiplier;
+        const modifiersTotal = this.selectedModifiers.reduce((sum, mod) => sum + mod.price, 0);
+        const currentTotal = basePrice + modifiersTotal;
 
         return `
             <div class="pizza-customization-view">
@@ -665,23 +681,42 @@ class VectHomeScreen {
                 <div class="pizza-customization-content">
                     <div class="pizza-image-section">
                         <img src="${pizza.image}" alt="${pizza.name}" class="pizza-image" />
-                        <div class="pizza-base-price">Base Price: €${pizza.price.toFixed(2)}</div>
+                        <div class="pizza-base-price">Base Price: €${basePrice.toFixed(2)}</div>
                     </div>
                     
-                    <div class="pizza-ingredients-section">
-                        <h3>Additional Ingredients</h3>
-                        <div class="ingredients-grid">
-                            ${availableIngredients.map(ingredient => `
-                                <div class="ingredient-item" data-ingredient-id="${ingredient.id}">
-                                    <label class="ingredient-checkbox">
-                                        <input type="checkbox" name="ingredient" value="${ingredient.id}" 
-                                               ${this.selectedModifiers.some(mod => mod.id === ingredient.id) ? 'checked' : ''} />
-                                        <span class="checkmark"></span>
-                                        <span class="ingredient-name">${ingredient.name}</span>
-                                        <span class="ingredient-price">+€${ingredient.price.toFixed(2)}</span>
-                                    </label>
-                                </div>
-                            `).join('')}
+                    <div class="pizza-options-section">
+                        <div class="pizza-size-section">
+                            <h3>Pizza Size</h3>
+                            <div class="pizza-size-options">
+                                ${availableSizes.map(size => `
+                                    <div class="size-option ${this.selectedPizzaSize.id === size.id ? 'selected' : ''}" 
+                                         data-size-id="${size.id}">
+                                        <input type="radio" name="pizza-size" value="${size.id}" id="size-${size.id}"
+                                               ${this.selectedPizzaSize.id === size.id ? 'checked' : ''} />
+                                        <label for="size-${size.id}" class="size-label">
+                                            <span class="size-name">${size.name}</span>
+                                            <span class="size-price">€${(pizza.price * size.multiplier).toFixed(2)}</span>
+                                        </label>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <div class="pizza-ingredients-section">
+                            <h3>Additional Ingredients</h3>
+                            <div class="ingredients-grid">
+                                ${availableIngredients.map(ingredient => `
+                                    <div class="ingredient-item" data-ingredient-id="${ingredient.id}">
+                                        <label class="ingredient-checkbox">
+                                            <input type="checkbox" name="ingredient" value="${ingredient.id}" 
+                                                   ${this.selectedModifiers.some(mod => mod.id === ingredient.id) ? 'checked' : ''} />
+                                            <span class="checkmark"></span>
+                                            <span class="ingredient-name">${ingredient.name}</span>
+                                            <span class="ingredient-price">+€${ingredient.price.toFixed(2)}</span>
+                                        </label>
+                                    </div>
+                                `).join('')}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -700,18 +735,21 @@ class VectHomeScreen {
     }
 
     addCustomPizzaToCart() {
-        if (!this.customizationProduct || !this.selectedModifiers) return;
+        if (!this.customizationProduct || !this.selectedPizzaSize) return;
         
-        const total = this.customizationProduct.price + this.selectedModifiers.reduce((sum, mod) => sum + mod.price, 0);
+        const basePrice = this.customizationProduct.price * this.selectedPizzaSize.multiplier;
+        const modifiersTotal = this.selectedModifiers.reduce((sum, mod) => sum + mod.price, 0);
+        const total = basePrice + modifiersTotal;
         
         const customizedPizza = {
             id: this.customizationProduct.id,
-            name: this.customizationProduct.name,
+            name: `${this.customizationProduct.name} (${this.selectedPizzaSize.name})`,
             basePrice: this.customizationProduct.price,
             price: this.customizationProduct.price,
             itemTotal: total,
             quantity: 1,
             modifiers: this.selectedModifiers,
+            size: this.selectedPizzaSize,
             category: this.customizationProduct.category,
             image: this.customizationProduct.image
         };
@@ -719,8 +757,9 @@ class VectHomeScreen {
         this.currentOrder.push(customizedPizza);
         this.updateCartDisplay();
         
+        const sizeInfo = this.selectedPizzaSize.name;
         const modifierNames = this.selectedModifiers.length > 0 ? ` with ${this.selectedModifiers.map(m => m.name).join(', ')}` : '';
-        this.showMessage(`Added ${this.customizationProduct.name}${modifierNames} to cart`, 'success');
+        this.showMessage(`Added ${this.customizationProduct.name} ${sizeInfo}${modifierNames} to cart`, 'success');
         
         // Return to product view
         this.hidePizzaCustomization();
@@ -758,7 +797,45 @@ class VectHomeScreen {
         }
 
         // Update total price display
-        const currentTotal = this.customizationProduct.price + this.selectedModifiers.reduce((sum, mod) => sum + mod.price, 0);
+        this.updatePizzaTotalDisplay();
+    }
+
+    handleSizeSelection(radioButton) {
+        const availableSizes = [
+            { id: '30cm', name: '30cm (Standard)', multiplier: 1.0 },
+            { id: '40cm', name: '40cm (Large)', multiplier: 1.5 }
+        ];
+
+        const sizeId = radioButton.value;
+        const selectedSize = availableSizes.find(size => size.id === sizeId);
+        
+        if (selectedSize) {
+            this.selectedPizzaSize = selectedSize;
+            
+            // Update visual selection
+            document.querySelectorAll('.size-option').forEach(option => {
+                option.classList.toggle('selected', option.dataset.sizeId === sizeId);
+            });
+            
+            // Update base price display
+            const basePriceElement = document.querySelector('.pizza-base-price');
+            if (basePriceElement && this.customizationProduct) {
+                const basePrice = this.customizationProduct.price * selectedSize.multiplier;
+                basePriceElement.textContent = `Base Price: €${basePrice.toFixed(2)}`;
+            }
+            
+            // Update total price
+            this.updatePizzaTotalDisplay();
+        }
+    }
+
+    updatePizzaTotalDisplay() {
+        if (!this.customizationProduct || !this.selectedPizzaSize) return;
+        
+        const basePrice = this.customizationProduct.price * this.selectedPizzaSize.multiplier;
+        const modifiersTotal = this.selectedModifiers.reduce((sum, mod) => sum + mod.price, 0);
+        const currentTotal = basePrice + modifiersTotal;
+        
         const totalElement = document.getElementById('pizza-total-amount');
         if (totalElement) {
             totalElement.textContent = currentTotal.toFixed(2);
