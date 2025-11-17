@@ -344,6 +344,11 @@ class OrdersListScreen {
     }
 
     setupEventListeners() {
+        // Remove existing global click handler to prevent duplicates
+        if (this.globalClickHandler) {
+            document.removeEventListener('click', this.globalClickHandler);
+        }
+
         // Search input
         const searchInput = document.getElementById('orders-search-input');
         if (searchInput) {
@@ -362,13 +367,35 @@ class OrdersListScreen {
             sortSelect.addEventListener('change', this.handleSort);
         }
 
-        // Global click handler for buttons
-        document.addEventListener('click', (e) => {
+        // Direct button event listeners
+        const newOrderBtn = document.querySelector('.new-order-btn[data-action="new-order"]');
+        if (newOrderBtn) {
+            console.log('✅ Found New Order button, attaching direct listener');
+            newOrderBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🔴 New Order button clicked directly!');
+                await this.handleNewOrder();
+            });
+        } else {
+            console.log('❌ New Order button not found');
+        }
+
+        // Global click handler for other buttons
+        this.globalClickHandler = async (e) => {
             const action = e.target.dataset.action;
             if (action) {
-                this.handleOrderAction(action, e.target);
+                console.log('Button clicked with action:', action); // Debug log
+                try {
+                    await this.handleOrderAction(action, e.target);
+                } catch (error) {
+                    console.error('Error handling action:', action, error);
+                    this.showMessage('An error occurred. Please try again.', 'error');
+                }
             }
-        });
+        };
+        
+        document.addEventListener('click', this.globalClickHandler);
     }
 
     handleSearch(event) {
@@ -417,9 +444,22 @@ class OrdersListScreen {
     }
 
     async handleNewOrder() {
+        console.log('handleNewOrder called'); // Debug log
         try {
+            console.log('Attempting to navigate to order-creation screen'); // Debug log
+            
+            // Check if app and navigateToScreen method exist
+            if (!this.app) {
+                throw new Error('App instance not available');
+            }
+            
+            if (typeof this.app.navigateToScreen !== 'function') {
+                throw new Error('navigateToScreen method not available on app');
+            }
+            
             // Navigate to order creation screen
             await this.app.navigateToScreen('order-creation', { mode: 'create' });
+            console.log('Navigation to order-creation screen completed'); // Debug log
         } catch (error) {
             console.error('Failed to navigate to order creation screen:', error);
             this.showMessage('Failed to open order creation screen', 'error');
@@ -554,10 +594,20 @@ class OrdersListScreen {
 
     destroy() {
         // Remove event listeners
-        this.orderManager.off('ordersUpdated', this.refreshOrders);
-        this.orderManager.off('orderCreated', this.refreshOrders);
-        this.orderManager.off('orderUpdated', this.refreshOrders);
-        this.orderManager.off('orderDeleted', this.refreshOrders);
+        if (this.orderManager) {
+            this.orderManager.off('ordersUpdated', this.refreshOrders);
+            this.orderManager.off('orderCreated', this.refreshOrders);
+            this.orderManager.off('orderUpdated', this.refreshOrders);
+            this.orderManager.off('orderDeleted', this.refreshOrders);
+        }
+        
+        // Remove global click handler
+        if (this.globalClickHandler) {
+            document.removeEventListener('click', this.globalClickHandler);
+            this.globalClickHandler = null;
+        }
+        
+        console.log('OrdersListScreen destroyed');
     }
 }
 

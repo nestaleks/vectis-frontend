@@ -147,23 +147,28 @@ class AppManager {
 
     // Navigation methods
     async navigateToScreen(screenName, options = {}) {
+        console.log(`🧭 Starting navigation to: ${screenName}`, options);
         try {
             let screen;
             const mainContainer = document.getElementById('app');
             
+            console.log(`📱 Main container found:`, !!mainContainer);
             if (!mainContainer) {
                 throw new Error('Main container #app not found');
             }
 
+            console.log(`🎯 Creating screen for: ${screenName}`);
             switch (screenName) {
                 case 'orders-list':
                     const { default: OrdersListScreen } = await import('../screens/orders/orders-list-screen.js');
                     screen = new OrdersListScreen(this, options);
+                    console.log(`✅ OrdersListScreen created`);
                     break;
                     
                 case 'order-creation':
                     const { default: OrderCreationScreen } = await import('../screens/orders/order-creation-screen.js');
                     screen = new OrderCreationScreen(this, options);
+                    console.log(`✅ OrderCreationScreen created`);
                     break;
                     
                 default:
@@ -171,22 +176,28 @@ class AppManager {
             }
 
             // Clean up current screen
+            console.log(`🧹 Cleaning up current screen:`, !!this.currentScreen);
             if (this.currentScreen && typeof this.currentScreen.destroy === 'function') {
                 this.currentScreen.destroy();
+                console.log(`✅ Previous screen destroyed`);
             }
 
             // Set new screen
             this.currentScreen = screen;
+            console.log(`📄 Rendering new screen...`);
             
             // Render new screen
             mainContainer.innerHTML = await screen.render();
+            console.log(`✅ Screen HTML rendered`);
             
             // Initialize screen
+            console.log(`🔧 Initializing screen...`);
             if (typeof screen.afterRender === 'function') {
                 await screen.afterRender();
+                console.log(`✅ Screen afterRender completed`);
             }
 
-            console.log(`✅ Navigated to ${screenName} screen`);
+            console.log(`✅ Successfully navigated to ${screenName} screen`);
             
         } catch (error) {
             console.error(`❌ Failed to navigate to ${screenName}:`, error);
