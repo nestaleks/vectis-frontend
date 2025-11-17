@@ -54,7 +54,7 @@ class OrderCreationScreen {
                     </div>
                     
                     <div class="vect-header-right">
-                        <button class="vect-btn" data-action="close-session">Close</button>
+                        <button class="vect-btn cancel-btn" data-action="cancel-order">Cancel</button>
                     </div>
                 </div>
 
@@ -219,8 +219,7 @@ class OrderCreationScreen {
 
     renderOrderTabs() {
         const tabs = [
-            { id: 'current', name: 'Order Items', badge: this.currentOrder.length },
-            { id: 'orders', name: 'Orders', badge: this.confirmedOrders.length }
+            { id: 'current', name: 'Order Items', badge: this.currentOrder.length }
         ];
 
         return tabs.map(tab => `
@@ -511,12 +510,6 @@ class OrderCreationScreen {
             }
         });
 
-        // Order tab switching
-        document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('vect-order-tab')) {
-                this.handleTabSwitch(e.target.dataset.tab);
-            }
-        });
 
         // Category switching
         document.addEventListener('click', (e) => {
@@ -614,22 +607,6 @@ class OrderCreationScreen {
         // Stay on Vect theme if theme === 'vect'
     }
 
-    handleTabSwitch(tabId) {
-        // Update active tab
-        document.querySelectorAll('.vect-order-tab').forEach(tab => {
-            tab.classList.toggle('active', tab.dataset.tab === tabId);
-        });
-        
-        // Handle tab functionality
-        switch (tabId) {
-            case 'current':
-                this.showMessage('Order items view', 'info');
-                break;
-            case 'orders':
-                this.showOrderHistory();
-                break;
-        }
-    }
 
     handleCategorySwitch(categoryId) {
         this.selectedCategory = categoryId;
@@ -991,8 +968,8 @@ class OrderCreationScreen {
             case 'backspace':
                 this.showMessage('Backspace pressed', 'info');
                 break;
-            case 'close-session':
-                this.showMessage('Session closed', 'info');
+            case 'cancel-order':
+                await this.handleCancelOrder();
                 break;
             case 'back-to-products':
                 this.hidePizzaCustomization();
@@ -1248,6 +1225,27 @@ class OrderCreationScreen {
         // Check if there are unsaved changes
         if (this.currentOrder.length > 0) {
             const confirmed = confirm('You have items in your cart. Are you sure you want to go back? All unsaved changes will be lost.');
+            if (!confirmed) {
+                return;
+            }
+        }
+
+        try {
+            // Navigate back to orders list
+            await this.app.navigateBack();
+        } catch (error) {
+            console.error('Failed to navigate back to orders list:', error);
+            this.showMessage('Failed to return to orders list', 'error');
+        }
+    }
+
+    /**
+     * Handle cancel order action
+     */
+    async handleCancelOrder() {
+        // Check if there are unsaved changes
+        if (this.currentOrder.length > 0) {
+            const confirmed = confirm('You have items in your cart. Are you sure you want to cancel? All unsaved changes will be lost.');
             if (!confirmed) {
                 return;
             }

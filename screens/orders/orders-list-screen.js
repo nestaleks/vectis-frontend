@@ -430,21 +430,213 @@ class OrdersListScreen {
         }
 
         try {
-            // Import OrderDetailsModal dynamically
-            const { default: OrderDetailsModal } = await import('../../components/modals/order-details-modal.js');
-            
-            // Register modal if not already registered
-            if (!this.modalManager.modals.has('order-details')) {
-                const orderDetailsModal = new OrderDetailsModal(this.app);
-                this.modalManager.register('order-details', orderDetailsModal);
-            }
-            
-            // Open modal with order details
-            await this.modalManager.open('order-details', { orderId });
+            // Toggle expanded state for the order row
+            this.toggleOrderExpansion(orderId);
         } catch (error) {
-            console.error('Failed to open order details modal:', error);
-            this.showMessage('Failed to open order details', 'error');
+            console.error('Failed to show order details:', error);
+            this.showMessage('Failed to show order details', 'error');
         }
+    }
+
+    toggleOrderExpansion(orderId) {
+        // Find the order row
+        const orderRow = document.querySelector(`[data-order-id="${orderId}"]`);
+        if (!orderRow) return;
+
+        // Check if details are already shown
+        const existingDetails = orderRow.nextElementSibling;
+        if (existingDetails && existingDetails.classList.contains('order-details-expansion')) {
+            // Close expansion
+            existingDetails.remove();
+            orderRow.classList.remove('expanded');
+            return;
+        }
+
+        // Close any other open expansions
+        this.closeAllExpansions();
+
+        // Create and show details expansion
+        const order = this.orderManager.getOrderById(orderId);
+        const detailsRow = this.createOrderDetailsExpansion(order);
+        
+        // Insert after the order row
+        orderRow.insertAdjacentHTML('afterend', detailsRow);
+        orderRow.classList.add('expanded');
+    }
+
+    closeAllExpansions() {
+        // Remove all existing expansions
+        document.querySelectorAll('.order-details-expansion').forEach(expansion => {
+            expansion.remove();
+        });
+        
+        // Remove expanded class from all rows
+        document.querySelectorAll('.order-row.expanded').forEach(row => {
+            row.classList.remove('expanded');
+        });
+    }
+
+    createOrderDetailsExpansion(order) {
+        const orderDate = new Date(order.date);
+        const formattedDate = orderDate.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        const formattedTime = orderDate.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        return `
+            <div class="order-details-expansion">
+                <div class="order-details-content">
+                    <div class="order-details-header-info">
+                        <div class="order-meta">
+                            <strong>Order #${order.id.toString().padStart(3, '0')}</strong>
+                            <span class="order-datetime">${formattedDate} at ${formattedTime}</span>
+                        </div>
+                    </div>
+
+                    <div class="order-details-body">
+                        <!-- Customer Information -->
+                        <div class="details-section">
+                            <h4>Customer Information</h4>
+                            <div class="customer-details">
+                                <div class="detail-item">
+                                    <span class="label">Customer:</span>
+                                    <span class="value">${order.customer || 'Walk-in Customer'}</span>
+                                </div>
+                                ${order.phone ? `
+                                    <div class="detail-item">
+                                        <span class="label">Phone:</span>
+                                        <span class="value">${order.phone}</span>
+                                    </div>
+                                ` : ''}
+                                ${order.email ? `
+                                    <div class="detail-item">
+                                        <span class="label">Email:</span>
+                                        <span class="value">${order.email}</span>
+                                    </div>
+                                ` : ''}
+                                ${order.address ? `
+                                    <div class="detail-item">
+                                        <span class="label">Address:</span>
+                                        <span class="value">${order.address}</span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+
+                        <!-- Order Items -->
+                        <div class="details-section">
+                            <h4>Order Items</h4>
+                            <div class="items-details">
+                                ${this.renderOrderItemsDetails(order.items)}
+                            </div>
+                        </div>
+
+                        <!-- Order Summary -->
+                        <div class="details-section">
+                            <h4>Order Summary</h4>
+                            <div class="order-summary-details">
+                                ${this.renderOrderSummaryDetails(order)}
+                            </div>
+                        </div>
+
+                        ${order.notes ? `
+                            <div class="details-section">
+                                <h4>Order Notes</h4>
+                                <div class="order-notes-details">
+                                    <p>${order.notes}</p>
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <!-- Action Buttons -->
+                        <div class="order-details-actions">
+                            <button class="details-action-btn close-btn" onclick="this.closest('.order-details-expansion').previousElementSibling.click()">
+                                Close Details
+                            </button>
+                            ${order.status !== 'completed' && order.status !== 'cancelled' ? `
+                                <button class="details-action-btn edit-btn" data-action="edit-order" data-order-id="${order.id}">
+                                    Edit Order
+                                </button>
+                            ` : ''}
+                            <button class="details-action-btn print-btn" onclick="window.print()">
+                                Print Receipt
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    renderOrderItemsDetails(items) {
+        if (!items || items.length === 0) {
+            return '<p class="no-items">No items in this order</p>';
+        }
+
+        return `
+            <div class="items-details-table">
+                ${items.map(item => `
+                    <div class="item-details-row">
+                        <div class="item-details-name">
+                            <strong>${item.name || 'Unknown Item'}</strong>
+                            ${item.description ? `<br><small>${item.description}</small>` : ''}
+                            ${item.customizations && item.customizations.length > 0 ? `
+                                <br><small class="customizations">+ ${item.customizations.join(', ')}</small>
+                            ` : ''}
+                        </div>
+                        <div class="item-details-quantity">
+                            <span class="quantity-badge">${item.quantity || 0}</span>
+                        </div>
+                        <div class="item-details-price">
+                            €${(item.price || 0).toFixed(2)} each
+                        </div>
+                        <div class="item-details-total">
+                            <strong>€${((item.price || 0) * (item.quantity || 0)).toFixed(2)}</strong>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    renderOrderSummaryDetails(order) {
+        const subtotal = order.items?.reduce((sum, item) => {
+            return sum + ((item.price || 0) * (item.quantity || 0));
+        }, 0) || 0;
+
+        const tax = order.tax || 0;
+        const discount = order.discount || 0;
+        const total = order.total || subtotal + tax - discount;
+
+        return `
+            <div class="summary-details-table">
+                <div class="summary-details-row">
+                    <span class="summary-label">Subtotal:</span>
+                    <span class="summary-value">€${subtotal.toFixed(2)}</span>
+                </div>
+                ${tax > 0 ? `
+                    <div class="summary-details-row">
+                        <span class="summary-label">Tax:</span>
+                        <span class="summary-value">€${tax.toFixed(2)}</span>
+                    </div>
+                ` : ''}
+                ${discount > 0 ? `
+                    <div class="summary-details-row discount">
+                        <span class="summary-label">Discount:</span>
+                        <span class="summary-value">-€${discount.toFixed(2)}</span>
+                    </div>
+                ` : ''}
+                <div class="summary-details-row total-row">
+                    <span class="summary-label"><strong>Total:</strong></span>
+                    <span class="summary-value"><strong>€${total.toFixed(2)}</strong></span>
+                </div>
+            </div>
+        `;
     }
 
     async editOrder(orderId) {
