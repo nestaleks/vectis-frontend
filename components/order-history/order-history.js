@@ -250,6 +250,25 @@ class OrderHistoryComponent extends BaseComponent {
                             <div class="vect-item-row">
                                 <div class="vect-item-info">
                                     <div class="item-name">${item.name}</div>
+                                    
+                                    ${item.size ? `
+                                        <div class="item-size">
+                                            <span class="size-badge">Size: ${item.size.name}</span>
+                                        </div>
+                                    ` : ''}
+                                    
+                                    ${item.extraIngredients && item.extraIngredients.length > 0 ? `
+                                        <div class="item-extra-ingredients">
+                                            <div class="extras-title">Extra ingredients:</div>
+                                            ${item.extraIngredients.map(ingredient => `
+                                                <span class="extra-ingredient-badge">
+                                                    +${ingredient.name} ${ingredient.quantity > 1 ? `x${ingredient.quantity}` : ''} 
+                                                    (+€${(ingredient.price * ingredient.quantity).toFixed(2)})
+                                                </span>
+                                            `).join('')}
+                                        </div>
+                                    ` : ''}
+                                    
                                     ${item.modifiers && item.modifiers.length > 0 ? `
                                         <div class="item-modifiers">
                                             ${item.modifiers.map(mod => `
@@ -262,6 +281,9 @@ class OrderHistoryComponent extends BaseComponent {
                                     <div class="vect-item-quantity">Qty: ${item.quantity}</div>
                                     <div class="vect-item-price">
                                         <div class="base-price">€${(item.basePrice || item.price).toFixed(2)}</div>
+                                        ${item.extraIngredients && item.extraIngredients.length > 0 ? `
+                                            <div class="extras-total">+€${item.extraIngredients.reduce((sum, ingredient) => sum + (ingredient.price * ingredient.quantity), 0).toFixed(2)}</div>
+                                        ` : ''}
                                         ${item.modifiers && item.modifiers.length > 0 ? `
                                             <div class="modifier-total">+€${item.modifiers.reduce((sum, mod) => sum + mod.price, 0).toFixed(2)}</div>
                                         ` : ''}

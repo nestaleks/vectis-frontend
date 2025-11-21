@@ -4,6 +4,7 @@ class AppManager {
         this.cartManager = null;
         this.orderManager = null;
         this.modalManager = null;
+        this.headerComponent = null;
         this.currentScreen = null;
         this.isInitialized = false;
         this.eventBus = null;
@@ -18,6 +19,7 @@ class AppManager {
             await this.initCartManager();
             await this.initOrderManager();
             await this.initModalManager();
+            await this.initHeaderComponent();
             await this.loadOrdersListTheme();
             
             this.isInitialized = true;
@@ -69,9 +71,20 @@ class AppManager {
         this.modalManager = ModalManager.getInstance();
     }
 
+    async initHeaderComponent() {
+        const { default: HeaderComponent } = await import('../components/header/header.js');
+        this.headerComponent = new HeaderComponent({
+            logoText: 'Vectis POS',
+            userInfo: 'Administrator'
+        }, { eventBus: this.eventBus });
+
+        // Listen for header button clicks
+        this.eventBus.on('header:button:click', this.handleHeaderButtonClick.bind(this));
+    }
+
     async loadOrdersListTheme() {
         try {
-            console.log('🎨 Loading Orders List theme...');
+            console.log('🎨 Loading Order Creation theme...');
             
             // Load CSS
             const cssLink = document.createElement('link');
@@ -79,22 +92,21 @@ class AppManager {
             cssLink.href = './styles/main.css';
             document.head.appendChild(cssLink);
             
-            // Load and initialize Orders List screen
-            const { default: OrdersListScreen } = await import('../screens/orders/orders-list-screen.js');
-            this.currentScreen = new OrdersListScreen(this);
+            // Load and initialize Order Creation screen
+            const { default: OrderCreationScreen } = await import('../screens/orders/order-creation-screen.js');
+            this.currentScreen = new OrderCreationScreen(this, { mode: 'create' });
             
-            // Render the screen
+            // Render the screen with universal header
             const mainContainer = document.getElementById('app');
             if (mainContainer) {
-                mainContainer.innerHTML = await this.currentScreen.render();
-                await this.currentScreen.afterRender();
-                console.log('✅ Orders List screen loaded successfully');
+                await this.renderScreenWithHeader(this.currentScreen, 'order-creation');
+                console.log('✅ Order Creation screen loaded successfully');
             } else {
                 throw new Error('Main container #app not found');
             }
             
         } catch (error) {
-            console.error('❌ Failed to load Orders List screen:', error);
+            console.error('❌ Failed to load Order Creation screen:', error);
             throw error;
         }
     }
@@ -119,6 +131,10 @@ class AppManager {
 
     getModalManager() {
         return this.modalManager;
+    }
+
+    getHeaderComponent() {
+        return this.headerComponent;
     }
 
     // Error handling
@@ -186,16 +202,9 @@ class AppManager {
             this.currentScreen = screen;
             console.log(`📄 Rendering new screen...`);
             
-            // Render new screen
-            mainContainer.innerHTML = await screen.render();
+            // Render new screen with header
+            await this.renderScreenWithHeader(screen, screenName);
             console.log(`✅ Screen HTML rendered`);
-            
-            // Initialize screen
-            console.log(`🔧 Initializing screen...`);
-            if (typeof screen.afterRender === 'function') {
-                await screen.afterRender();
-                console.log(`✅ Screen afterRender completed`);
-            }
 
             console.log(`✅ Successfully navigated to ${screenName} screen`);
             
@@ -208,6 +217,102 @@ class AppManager {
     async navigateBack() {
         // Default back navigation - go to orders list
         await this.navigateToScreen('orders-list');
+    }
+
+    async renderScreenWithHeader(screen, screenName) {
+        const mainContainer = document.getElementById('app');
+        if (!mainContainer) {
+            throw new Error('Main container #app not found');
+        }
+
+        // Configure header based on screen
+        const headerConfig = this.getHeaderConfigForScreen(screenName, screen);
+        this.headerComponent.updateConfig(headerConfig);
+
+        // Get screen content without header
+        const screenContent = await screen.render();
+        
+        // Combine header and screen content
+        const fullContent = `
+            ${await this.headerComponent.render()}
+            <div class="screen-content">
+                ${this.extractScreenContentWithoutHeader(screenContent)}
+            </div>
+        `;
+
+        mainContainer.innerHTML = fullContent;
+        
+        // Initialize components
+        if (typeof screen.afterRender === 'function') {
+            await screen.afterRender();
+        }
+    }
+
+    getHeaderConfigForScreen(screenName, screen) {
+        switch (screenName) {
+            case 'orders-list':
+                return {
+                    pageTitle: 'Orders Management',
+                    centerContent: screen.renderOrderTabs ? screen.renderOrderTabs() : '',
+                    buttons: [{
+                        action: 'new-order',
+                        text: 'New Order',
+                        icon: '+',
+                        className: 'new-order-btn',
+                        iconClass: 'new-order-icon',
+                        textClass: 'new-order-text'
+                    }]
+                };
+            case 'order-creation':
+                return {
+                    pageTitle: screen.mode === 'edit' ? `Editing Order ${screen.data?.orderId ? '#' + screen.data.orderId : ''}` : 'New Order',
+                    centerContent: screen.renderOrderTabs ? screen.renderOrderTabs() : '',
+                    buttons: [{
+                        action: 'cancel-order',
+                        text: 'Cancel',
+                        className: 'vect-btn cancel-btn'
+                    }]
+                };
+            default:
+                return {
+                    pageTitle: '',
+                    centerContent: '',
+                    buttons: []
+                };
+        }
+    }
+
+    extractScreenContentWithoutHeader(screenContent) {
+        // Remove header from screen content if it exists
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = screenContent;
+        
+        // Remove any existing header
+        const existingHeader = tempDiv.querySelector('.vect-header');
+        if (existingHeader) {
+            existingHeader.remove();
+        }
+        
+        return tempDiv.innerHTML;
+    }
+
+    handleHeaderButtonClick(data) {
+        const { action, buttonConfig } = data;
+        
+        switch (action) {
+            case 'new-order':
+                this.navigateToScreen('order-creation', { mode: 'create' });
+                break;
+            case 'cancel-order':
+                this.navigateToScreen('orders-list');
+                break;
+            default:
+                // Let current screen handle custom actions
+                if (this.currentScreen && typeof this.currentScreen.handleHeaderAction === 'function') {
+                    this.currentScreen.handleHeaderAction(action, buttonConfig);
+                }
+                break;
+        }
     }
 
     // System info

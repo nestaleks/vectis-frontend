@@ -15,20 +15,36 @@ class CartComponent extends BaseComponent {
     }
 
     setupEventListeners() {
-        // Quantity controls
+        // Unified click handler for all cart interactions
         this.addEventListener(this.element, 'click', (e) => {
-            if (e.target.classList.contains('vect-quantity-btn')) {
-                const action = e.target.dataset.action;
-                const index = parseInt(e.target.dataset.itemIndex);
-                this.handleQuantityChange(action, index);
-            }
-        });
-
-        // Remove item buttons
-        this.addEventListener(this.element, 'click', (e) => {
-            if (e.target.classList.contains('vect-remove-item')) {
-                const index = parseInt(e.target.dataset.itemIndex);
-                this.removeItem(index);
+            const action = e.target.dataset.action;
+            const itemIndex = parseInt(e.target.dataset.itemIndex);
+            
+            switch (action) {
+                case 'decrease':
+                case 'increase':
+                    if (e.target.classList.contains('vect-quantity-btn')) {
+                        this.handleQuantityChange(action, itemIndex);
+                    }
+                    break;
+                    
+                case 'change-size':
+                    const sizeId = e.target.dataset.sizeId;
+                    this.handleSizeChange(itemIndex, sizeId);
+                    break;
+                    
+                case 'ingredient-decrease':
+                case 'ingredient-increase':
+                    const ingredientId = e.target.dataset.ingredientId;
+                    this.handleIngredientQuantityChange(action, itemIndex, ingredientId);
+                    break;
+                    
+                default:
+                    // Handle remove item buttons (no action attribute)
+                    if (e.target.classList.contains('vect-remove-item')) {
+                        this.removeItem(itemIndex);
+                    }
+                    break;
             }
         });
 
@@ -172,27 +188,78 @@ class CartComponent extends BaseComponent {
     }
 
     renderCartItem(item, index) {
+        const isPizza = this.isPizzaItem(item);
+        const unitPrice = this.getUnitPrice(item);
+        
         return `
-            <div class="vect-cart-item" data-item-index="${index}">
-                <div class="vect-cart-item-image">
-                    ${item.image ? 
-                        `<img src="${item.image}" alt="${item.name}" />` : 
-                        `<div class="vect-cart-item-placeholder"></div>`
-                    }
+            <div class="vect-cart-item ${isPizza ? 'pizza-item' : ''}" data-item-index="${index}">
+                <!-- Row 1: Product name, price, quantity controls, delete icon -->
+                <div class="vect-cart-item-row-1">
+                    <div class="vect-cart-item-main-info">
+                        <div class="vect-cart-item-name">${item.name}</div>
+                        <div class="vect-cart-item-price">€${unitPrice.toFixed(2)}</div>
+                    </div>
+                    <div class="vect-cart-item-controls">
+                        <div class="vect-cart-item-quantity">
+                            <button class="vect-quantity-btn" data-action="decrease" data-item-index="${index}" 
+                                    title="Decrease quantity">-</button>
+                            <span class="vect-quantity-value">${item.quantity}</span>
+                            <button class="vect-quantity-btn" data-action="increase" data-item-index="${index}" 
+                                    title="Increase quantity">+</button>
+                        </div>
+                        <button class="vect-remove-item" data-item-index="${index}" title="Remove item">🗑️</button>
+                    </div>
                 </div>
-                <div class="vect-cart-item-info">
-                    <div class="vect-cart-item-name">${item.name}</div>
-                    <div class="vect-cart-item-price">€${item.price.toFixed(2)}</div>
+
+                <!-- Row 2: Size selection (conditional for pizza) -->
+                ${isPizza ? `
+                <div class="vect-cart-item-row-2">
+                    <div class="vect-size-selector">
+                        <span class="vect-size-label">Size:</span>
+                        <div class="vect-size-buttons">
+                            ${item.availableSizes?.map(size => `
+                                <button class="vect-size-btn ${item.size?.id === size.id ? 'active' : ''}" 
+                                        data-action="change-size" 
+                                        data-item-index="${index}" 
+                                        data-size-id="${size.id}"
+                                        title="Select ${size.name}">
+                                    ${size.name}
+                                </button>
+                            `).join('') || ''}
+                        </div>
+                    </div>
                 </div>
-                <div class="vect-cart-item-quantity">
-                    <button class="vect-quantity-btn" data-action="decrease" data-item-index="${index}">-</button>
-                    <span class="vect-quantity-value">${item.quantity}</span>
-                    <button class="vect-quantity-btn" data-action="increase" data-item-index="${index}">+</button>
+                ` : ''}
+
+                <!-- Row 3: Extra ingredients (conditional for pizza) -->
+                ${isPizza && item.extraIngredients?.length > 0 ? `
+                <div class="vect-cart-item-row-3">
+                    <div class="vect-extras-section">
+                        <span class="vect-extras-label">Extras:</span>
+                        <div class="vect-extras-list">
+                            ${item.extraIngredients.map(ingredient => `
+                                <div class="vect-extra-item" data-ingredient-id="${ingredient.id}">
+                                    <span class="vect-extra-name">${ingredient.name}</span>
+                                    <div class="vect-extra-controls">
+                                        <button class="vect-extra-btn" 
+                                                data-action="ingredient-decrease" 
+                                                data-item-index="${index}" 
+                                                data-ingredient-id="${ingredient.id}"
+                                                title="Decrease ${ingredient.name}">-</button>
+                                        <span class="vect-extra-quantity">${ingredient.quantity}</span>
+                                        <button class="vect-extra-btn" 
+                                                data-action="ingredient-increase" 
+                                                data-item-index="${index}" 
+                                                data-ingredient-id="${ingredient.id}"
+                                                title="Increase ${ingredient.name}">+</button>
+                                        <span class="vect-extra-price">+€${(ingredient.price * ingredient.quantity).toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
                 </div>
-                <div class="vect-cart-item-total">
-                    €${(item.price * item.quantity).toFixed(2)}
-                </div>
-                <button class="vect-remove-item" data-item-index="${index}" title="Remove item">✕</button>
+                ` : ''}
             </div>
         `;
     }
@@ -231,11 +298,93 @@ class CartComponent extends BaseComponent {
     }
 
     calculateTotal() {
-        const subtotal = this.currentOrder.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const subtotal = this.currentOrder.reduce((sum, item) => sum + this.calculateItemTotal(item), 0);
         const tax = subtotal * this.taxRate;
         const total = subtotal + tax;
 
         return { subtotal, tax, total };
+    }
+
+    // Helper method to check if item is pizza
+    isPizzaItem(item) {
+        return item && (item.category === 'pizza' || item.category === 'white-pizza');
+    }
+
+    // Calculate unit price including size multiplier and ingredients
+    getUnitPrice(item) {
+        if (!this.isPizzaItem(item)) {
+            return item.price;
+        }
+
+        const basePrice = (item.basePrice || item.price) * (item.size ? item.size.multiplier : 1);
+        let extraIngredientsCost = 0;
+        
+        if (item.extraIngredients && item.extraIngredients.length > 0) {
+            extraIngredientsCost = item.extraIngredients.reduce((sum, ingredient) => {
+                return sum + (ingredient.price * ingredient.quantity);
+            }, 0);
+        }
+
+        return basePrice + extraIngredientsCost;
+    }
+
+    // Calculate total price for an item including quantity
+    calculateItemTotal(item) {
+        if (!this.isPizzaItem(item)) {
+            // Non-pizza items: just base price * quantity
+            return item.price * item.quantity;
+        }
+
+        // Pizza items: calculate with size multiplier + extra ingredients, then multiply by quantity
+        const unitPrice = this.getUnitPrice(item);
+        return unitPrice * item.quantity;
+    }
+
+    // Handle pizza size change
+    handleSizeChange(itemIndex, sizeId) {
+        if (itemIndex < 0 || itemIndex >= this.currentOrder.length) return;
+        
+        const item = this.currentOrder[itemIndex];
+        if (!this.isPizzaItem(item) || !item.availableSizes) return;
+        
+        const newSize = item.availableSizes.find(size => size.id === sizeId);
+        if (!newSize) return;
+        
+        // Update item size
+        item.size = { ...newSize };
+        
+        // Update cart display and emit events
+        this.updateCartDisplay();
+        this.emitCartUpdate();
+    }
+
+    // Handle ingredient quantity change
+    handleIngredientQuantityChange(action, itemIndex, ingredientId) {
+        if (itemIndex < 0 || itemIndex >= this.currentOrder.length) return;
+        
+        const item = this.currentOrder[itemIndex];
+        if (!this.isPizzaItem(item) || !item.extraIngredients) return;
+        
+        const ingredient = item.extraIngredients.find(ei => ei.id === parseInt(ingredientId));
+        if (!ingredient) return;
+        
+        if (action === 'ingredient-increase') {
+            ingredient.quantity += 1;
+        } else if (action === 'ingredient-decrease') {
+            ingredient.quantity -= 1;
+            
+            // Remove ingredient if quantity reaches 0
+            if (ingredient.quantity <= 0) {
+                const ingredientIndex = item.extraIngredients.findIndex(ei => ei.id === parseInt(ingredientId));
+                if (ingredientIndex !== -1) {
+                    item.extraIngredients.splice(ingredientIndex, 1);
+                }
+            }
+        }
+        
+        // Update cart display and emit events
+        this.updateCartDisplay();
+        this.emitCartUpdate();
     }
 
     getTotalItemCount() {

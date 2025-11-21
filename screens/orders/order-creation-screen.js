@@ -14,10 +14,29 @@ class OrderCreationScreen {
         this.selectedCategory = 'all';
         this.searchQuery = '';
         this.products = [];
-        this.showingCustomization = false;
-        this.customizationProduct = null;
         this.confirmedOrders = [];
         this.isProcessingOrder = false; // Prevent double-clicks
+
+        // Pizza customization constants
+        this.PIZZA_SIZES = [
+            { id: '30cm', name: '30cm (Standard)', multiplier: 1.0 },
+            { id: '40cm', name: '40cm (Large)', multiplier: 1.5 }
+        ];
+
+        this.EXTRA_INGREDIENTS = [
+            { id: 1, name: 'Extra Mozzarella', price: 2.50, image: 'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=64&h=64&fit=crop&crop=center' },
+            { id: 2, name: 'Pepperoni', price: 3.00, image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=64&h=64&fit=crop&crop=center' },
+            { id: 3, name: 'Mushrooms', price: 2.00, image: 'https://images.unsplash.com/photo-1506976785307-8732e854ad03?w=64&h=64&fit=crop&crop=center' },
+            { id: 4, name: 'Bell Peppers', price: 2.00, image: 'https://images.unsplash.com/photo-1525607551316-4a8e16d1f9a8?w=64&h=64&fit=crop&crop=center' },
+            { id: 5, name: 'Red Onions', price: 1.50, image: 'https://images.unsplash.com/photo-1518977956812-cd3dbadaaf31?w=64&h=64&fit=crop&crop=center' },
+            { id: 6, name: 'Olives', price: 2.50, image: 'https://images.unsplash.com/photo-1452827073306-6e6e661baf57?w=64&h=64&fit=crop&crop=center' },
+            { id: 7, name: 'Tomatoes', price: 2.00, image: 'https://images.unsplash.com/photo-1546470427-e5da40c4e6b0?w=64&h=64&fit=crop&crop=center' },
+            { id: 8, name: 'Basil', price: 1.50, image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=64&h=64&fit=crop&crop=center' },
+            { id: 9, name: 'Prosciutto', price: 4.00, image: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=64&h=64&fit=crop&crop=center' },
+            { id: 10, name: 'Salami', price: 3.50, image: 'https://images.unsplash.com/photo-1562887189-51d2ae565fbf?w=64&h=64&fit=crop&crop=center' },
+            { id: 11, name: 'Arugula', price: 2.00, image: 'https://images.unsplash.com/photo-1515543237350-b3eea1ec8082?w=64&h=64&fit=crop&crop=center' },
+            { id: 12, name: 'Parmesan', price: 3.00, image: 'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=64&h=64&fit=crop&crop=center' }
+        ];
 
         // Load existing order if in edit mode
         if (this.mode === 'edit' && this.existingOrder) {
@@ -35,29 +54,6 @@ class OrderCreationScreen {
 
         return `
             <div class="pos-layout vect-theme">
-                <!-- Header -->
-                <div class="vect-header">
-                    <div class="vect-header-left">
-                        <button class="back-to-orders-btn" data-action="back-to-orders" aria-label="Back to Orders">
-                            ← Back to Orders
-                        </button>
-                        <div class="vect-logo">Vectis POS</div>
-                        <div class="vect-user-info">
-                            <span style="font-size: 0.875rem; color: var(--vect-gray-600);">
-                                ${this.mode === 'edit' ? `Editing Order ${this.data.orderId ? '#' + this.data.orderId : ''}` : 'New Order'}
-                            </span>
-                        </div>
-                    </div>
-                    
-                    <div class="vect-header-center">
-                        <!-- Header Center Content -->
-                    </div>
-                    
-                    <div class="vect-header-right">
-                        <button class="vect-btn cancel-btn" data-action="cancel-order">Cancel</button>
-                    </div>
-                </div>
-
                 <!-- Main Content Area -->
                 <div class="vect-main">
                     <!-- Left Sidebar - Cart & Numpad -->
@@ -89,13 +85,8 @@ class OrderCreationScreen {
 
                     <!-- Content Area (Controls + Products) -->
                     <div class="vect-content">
-                        <!-- Controls Panel - Order tabs, Categories, Search -->
+                        <!-- Controls Panel - Categories, Search -->
                         <div class="vect-controls">
-                            <!-- Order Tabs -->
-                            <div class="vect-order-tabs" id="vect-order-tabs">
-                                ${this.renderOrderTabs()}
-                            </div>
-
                             <!-- Categories and Search Container -->
                             <div class="vect-categories-search-container">
                                 <!-- Categories Section -->
@@ -219,7 +210,8 @@ class OrderCreationScreen {
 
     renderOrderTabs() {
         const tabs = [
-            { id: 'current', name: 'Order Items', badge: this.currentOrder.length }
+            { id: 'current', name: 'Order Items', badge: this.currentOrder.length },
+            { id: 'orders', name: 'Orders', badge: 0 }
         ];
 
         return tabs.map(tab => `
@@ -257,10 +249,6 @@ class OrderCreationScreen {
     }
 
     renderProducts() {
-        // Show customization view if active
-        if (this.showingCustomization && this.customizationProduct) {
-            return this.renderPizzaCustomization(this.customizationProduct);
-        }
 
         const filteredProducts = this.filterProducts();
         
@@ -299,36 +287,79 @@ class OrderCreationScreen {
             `;
         }
 
-        return this.currentOrder.map((item, index) => `
-            <div class="vect-cart-item" data-item-index="${index}">
-                <div class="vect-cart-item-image"></div>
-                <div class="vect-cart-item-info">
-                    <div class="vect-cart-item-name">${item.name}</div>
-                    ${item.modifiers && item.modifiers.length > 0 ? `
-                        <div class="vect-cart-item-modifiers">
-                            ${item.modifiers.map(mod => `<span class="vect-modifier">+${mod.name}</span>`).join(', ')}
+        return this.currentOrder.map((item, index) => {
+            const isPizza = this.isPizzaProduct(item);
+            const unitPrice = this.getUnitPrice(item);
+            const totalPrice = this.calculateItemPrice(item);
+
+            return `
+                <div class="vect-cart-item ${isPizza ? 'pizza-item' : ''}" data-item-index="${index}">
+                    <div class="vect-cart-item-header">
+                        <div class="vect-cart-item-info">
+                            <div class="vect-cart-item-name">${item.name}</div>
+                            
+                            <!-- Show size for pizzas -->
+                            ${isPizza && item.size ? `
+                                <div class="vect-cart-item-size">Size: ${item.size.name}</div>
+                            ` : ''}
+                            
+                            <!-- Show legacy modifiers for non-pizza items -->
+                            ${!isPizza && item.modifiers && item.modifiers.length > 0 ? `
+                                <div class="vect-cart-item-modifiers">
+                                    ${item.modifiers.map(mod => `<span class="vect-modifier">+${mod.name}</span>`).join(', ')}
+                                </div>
+                            ` : ''}
+                            
+                            <button class="vect-remove-btn" data-action="remove" data-item-index="${index}" title="Remove from cart">
+                                <span class="vect-remove-icon">🗑️</span>
+                                <span class="vect-remove-text">Remove</span>
+                            </button>
+                        </div>
+                        
+                        <div class="vect-cart-item-pricing">
+                            <div class="vect-cart-item-unit-price">€${unitPrice.toFixed(2)}</div>
+                            ${item.quantity > 1 ? `
+                                <div class="vect-cart-item-total">Total: €${totalPrice.toFixed(2)}</div>
+                            ` : ''}
+                        </div>
+                        
+                        <div class="vect-cart-item-controls">
+                            <button class="vect-quantity-btn" data-action="decrease" data-item-index="${index}">-</button>
+                            <input type="number" class="vect-quantity-input" value="${item.quantity}" min="1" data-item-index="${index}" />
+                            <button class="vect-quantity-btn" data-action="increase" data-item-index="${index}">+</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Show extra ingredients list for pizzas (under header) -->
+                    ${isPizza && item.extraIngredients && item.extraIngredients.length > 0 ? `
+                        <div class="vect-cart-item-extras-list">
+                            ${item.extraIngredients.map(ingredient => `
+                                <div class="vect-cart-item-extra">
+                                    <div class="extra-ingredient-info">
+                                        <img class="extra-ingredient-image" src="${ingredient.image}" alt="${ingredient.name}" />
+                                        <span class="extra-ingredient-name">+ ${ingredient.name}</span>
+                                        ${ingredient.quantity > 1 ? `<span class="ingredient-quantity">x${ingredient.quantity}</span>` : ''}
+                                    </div>
+                                    <span class="extra-ingredient-cost">€${(ingredient.price * ingredient.quantity).toFixed(2)}</span>
+                                </div>
+                            `).join('')}
                         </div>
                     ` : ''}
-                    <div class="vect-cart-item-price">€${(item.basePrice || item.price).toFixed(2)}</div>
-                    ${item.modifiers && item.modifiers.length > 0 ? `
-                        <div class="vect-cart-item-total">Total: €${(item.itemTotal || item.price * item.quantity).toFixed(2)}</div>
+                    
+                    <!-- Pizza customization section -->
+                    ${isPizza ? `
+                        <div class="vect-cart-item-customization">
+                            ${this.renderPizzaSizeSelector(item, index)}
+                            ${this.renderPizzaIngredients(item, index)}
+                        </div>
                     ` : ''}
-                    <button class="vect-remove-btn" data-action="remove" data-item-index="${index}" title="Remove from cart">
-                        <span class="vect-remove-icon">🗑️</span>
-                        <span class="vect-remove-text">Remove</span>
-                    </button>
                 </div>
-                <div class="vect-cart-item-controls">
-                    <button class="vect-quantity-btn" data-action="decrease" data-item-index="${index}">-</button>
-                    <input type="number" class="vect-quantity-input" value="${item.quantity}" min="1" data-item-index="${index}" />
-                    <button class="vect-quantity-btn" data-action="increase" data-item-index="${index}">+</button>
-                </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
     renderCartSummary() {
-        const subtotal = this.currentOrder.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const subtotal = this.currentOrder.reduce((sum, item) => sum + this.calculateItemPrice(item), 0);
         const tax = subtotal * 0.21; // 21% VAT
         const total = subtotal + tax;
 
@@ -495,11 +526,36 @@ class OrderCreationScreen {
         this.updateProductDisplay();
     }
 
+    handleHeaderAction(action, buttonConfig) {
+        switch (action) {
+            case 'cancel-order':
+                this.handleCancelOrder();
+                break;
+            default:
+                console.log('Unhandled header action:', action);
+                break;
+        }
+    }
+
+    handleCancelOrder() {
+        // Navigate back to orders list
+        if (this.app && typeof this.app.navigateToScreen === 'function') {
+            this.app.navigateToScreen('orders-list');
+        }
+    }
+
     setupEventListeners() {
         // Back to orders navigation
         document.addEventListener('click', (e) => {
             if (e.target.dataset.action === 'back-to-orders') {
                 this.handleBackToOrders();
+            }
+        });
+
+        // Tab switching
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('vect-order-tab')) {
+                this.handleTabSwitch(e.target.dataset.tab);
             }
         });
 
@@ -543,6 +599,59 @@ class OrderCreationScreen {
             }
         });
 
+        // Pizza customization event listeners
+        document.addEventListener('click', (e) => {
+            // Handle pizza size change
+            if (e.target.dataset.action === 'change-size') {
+                const itemIndex = parseInt(e.target.dataset.itemIndex);
+                const sizeId = e.target.dataset.sizeId;
+                this.handleSizeChange(itemIndex, sizeId);
+            }
+            // Handle ingredient quantity controls
+            else if (e.target.dataset.action === 'increase-ingredient') {
+                const itemIndex = parseInt(e.target.dataset.itemIndex);
+                const ingredientId = e.target.dataset.ingredientId;
+                this.handleIngredientQuantityChange(itemIndex, ingredientId, 'increase');
+            }
+            else if (e.target.dataset.action === 'decrease-ingredient') {
+                const itemIndex = parseInt(e.target.dataset.itemIndex);
+                const ingredientId = e.target.dataset.ingredientId;
+                this.handleIngredientQuantityChange(itemIndex, ingredientId, 'decrease');
+            }
+            // Handle ingredient removal
+            else if (e.target.dataset.action === 'remove-ingredient') {
+                const itemIndex = parseInt(e.target.dataset.itemIndex);
+                const ingredientId = e.target.dataset.ingredientId;
+                this.handleIngredientRemove(itemIndex, ingredientId);
+            }
+            // Handle accordion toggle
+            else if (e.target.dataset.action === 'toggle-ingredients' || 
+                     e.target.closest('.ingredients-accordion-header')) {
+                const accordionHeader = e.target.dataset.action === 'toggle-ingredients' 
+                    ? e.target 
+                    : e.target.closest('.ingredients-accordion-header');
+                
+                if (accordionHeader && accordionHeader.dataset.itemIndex) {
+                    const itemIndex = parseInt(accordionHeader.dataset.itemIndex);
+                    this.handleIngredientsToggle(itemIndex);
+                }
+            }
+            // Handle ingredient selection from list
+            else if (e.target.dataset.action === 'add-ingredient' || 
+                     e.target.closest('.available-ingredient-item')) {
+                const ingredientItem = e.target.dataset.action === 'add-ingredient' 
+                    ? e.target 
+                    : e.target.closest('.available-ingredient-item');
+                
+                if (ingredientItem && ingredientItem.dataset.itemIndex && ingredientItem.dataset.ingredientId) {
+                    const itemIndex = parseInt(ingredientItem.dataset.itemIndex);
+                    const ingredientId = ingredientItem.dataset.ingredientId;
+                    this.handleIngredientAdd(itemIndex, ingredientId);
+                }
+            }
+        });
+
+
         // Quantity input field handling
         document.addEventListener('change', (e) => {
             if (e.target.classList.contains('vect-quantity-input')) {
@@ -581,15 +690,51 @@ class OrderCreationScreen {
             }
         });
 
-        // Ingredient selection for pizza customization
-        document.addEventListener('change', (e) => {
-            if (e.target.type === 'checkbox' && e.target.name === 'ingredient' && this.showingCustomization) {
-                this.handleIngredientSelection(e.target);
-            } else if (e.target.type === 'radio' && e.target.name === 'pizza-size' && this.showingCustomization) {
-                this.handleSizeSelection(e.target);
-            }
+
+    }
+
+    handleTabSwitch(tabId) {
+        // Update active tab UI
+        document.querySelectorAll('.vect-order-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.tab === tabId);
         });
 
+        // Handle tab switching logic
+        switch (tabId) {
+            case 'current':
+                // Already on Order Items tab - no action needed
+                break;
+            case 'orders':
+                this.navigateToOrdersList();
+                break;
+        }
+    }
+
+    async navigateToOrdersList() {
+        try {
+            // Check if there are unsaved changes
+            if (this.currentOrder.length > 0) {
+                const confirmed = confirm('You have items in your cart. Switch to Orders list? You can return to continue working on this order.');
+                if (!confirmed) {
+                    // Reset tab selection to current
+                    document.querySelectorAll('.vect-order-tab').forEach(tab => {
+                        tab.classList.toggle('active', tab.dataset.tab === 'current');
+                    });
+                    return;
+                }
+            }
+
+            // Navigate to orders list screen
+            await this.app.navigateToScreen('orders-list');
+        } catch (error) {
+            console.error('Failed to navigate to orders list:', error);
+            this.showMessage('Failed to navigate to orders list', 'error');
+            
+            // Reset tab selection to current
+            document.querySelectorAll('.vect-order-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.tab === 'current');
+            });
+        }
     }
 
     handleThemeSwitch(theme, button) {
@@ -649,23 +794,299 @@ class OrderCreationScreen {
         // Get full product details
         const fullProduct = this.products.find(p => p.id === product.id);
         
-        // Check if product is pizza and show customization view
-        if (fullProduct && (fullProduct.category === 'pizza' || fullProduct.category === 'white-pizza')) {
-            this.showPizzaCustomization(fullProduct);
-            return;
-        }
+        // Check if product already exists in cart
+        const existingItemIndex = this.currentOrder.findIndex(item => 
+            item.id === product.id && 
+            // For pizzas, check if it's the same size and ingredients
+            (!this.isPizzaProduct(fullProduct) || 
+             (item.size && item.size.id === '30cm' && (!item.extraIngredients || item.extraIngredients.length === 0)))
+        );
         
-        // Add to cart normally for non-pizza items
-        const existingItem = this.currentOrder.find(item => item.id === product.id);
-        if (existingItem) {
-            existingItem.quantity += 1;
+        if (existingItemIndex !== -1) {
+            // Increment quantity of existing item
+            this.currentOrder[existingItemIndex].quantity += 1;
         } else {
-            this.currentOrder.push({
+            // Create new cart item
+            const cartItem = {
                 ...product,
                 quantity: 1
-            });
+            };
+            
+            // Add pizza-specific properties if it's a pizza
+            if (fullProduct && this.isPizzaProduct(fullProduct)) {
+                cartItem.category = fullProduct.category;
+                cartItem.size = { ...this.PIZZA_SIZES[0] }; // Default to 30cm
+                cartItem.extraIngredients = [];
+                cartItem.availableSizes = [...this.PIZZA_SIZES];
+                cartItem.availableIngredients = [...this.EXTRA_INGREDIENTS];
+                cartItem.basePrice = fullProduct.price;
+                cartItem.ingredientsExpanded = false; // Start with accordion closed
+            }
+            
+            this.currentOrder.push(cartItem);
         }
         
+        this.updateCartDisplay();
+        
+        // Show success message
+        const itemName = fullProduct ? fullProduct.name : product.name;
+        this.showMessage(`${itemName} added to cart`, 'success');
+    }
+
+    // Helper method to check if product is pizza
+    isPizzaProduct(product) {
+        return product && (product.category === 'pizza' || product.category === 'white-pizza');
+    }
+
+    // Calculate total price for an item including size and extra ingredients
+    calculateItemPrice(item) {
+        if (!this.isPizzaProduct(item)) {
+            // Non-pizza items: just base price * quantity
+            return item.price * item.quantity;
+        }
+
+        // Pizza items: calculate base price with size multiplier + extra ingredients
+        const basePrice = (item.basePrice || item.price) * (item.size ? item.size.multiplier : 1);
+        let extraIngredientsCost = 0;
+        
+        if (item.extraIngredients && item.extraIngredients.length > 0) {
+            extraIngredientsCost = item.extraIngredients.reduce((sum, ingredient) => {
+                return sum + (ingredient.price * ingredient.quantity);
+            }, 0);
+        }
+
+        const singleItemTotal = basePrice + extraIngredientsCost;
+        return singleItemTotal * item.quantity;
+    }
+
+    // Get the unit price for display (without quantity multiplier)
+    getUnitPrice(item) {
+        if (!this.isPizzaProduct(item)) {
+            return item.price;
+        }
+
+        const basePrice = (item.basePrice || item.price) * (item.size ? item.size.multiplier : 1);
+        let extraIngredientsCost = 0;
+        
+        if (item.extraIngredients && item.extraIngredients.length > 0) {
+            extraIngredientsCost = item.extraIngredients.reduce((sum, ingredient) => {
+                return sum + (ingredient.price * ingredient.quantity);
+            }, 0);
+        }
+
+        return basePrice + extraIngredientsCost;
+    }
+
+    // Render pizza size selector component
+    renderPizzaSizeSelector(item, index) {
+        if (!this.isPizzaProduct(item) || !item.availableSizes) {
+            return '';
+        }
+
+        const currentSizeId = item.size ? item.size.id : '30cm';
+
+        return `
+            <div class="pizza-size-selector" data-item-index="${index}">
+                <label class="size-selector-label">Size:</label>
+                <div class="size-buttons">
+                    ${item.availableSizes.map(size => `
+                        <button class="size-btn ${size.id === currentSizeId ? 'active' : ''}" 
+                                data-action="change-size" 
+                                data-item-index="${index}" 
+                                data-size-id="${size.id}">
+                            ${size.name}
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Render pizza ingredients component
+    renderPizzaIngredients(item, index) {
+        if (!this.isPizzaProduct(item) || !item.availableIngredients) {
+            return '';
+        }
+
+        // Show selected extra ingredients for management
+        const selectedIngredients = item.extraIngredients && item.extraIngredients.length > 0 ? `
+            <div class="selected-ingredients">
+                ${item.extraIngredients.map(ingredient => `
+                    <div class="ingredient-item" data-ingredient-id="${ingredient.id}">
+                        <div class="ingredient-info">
+                            <img class="ingredient-image small" src="${ingredient.image}" alt="${ingredient.name}" />
+                            <span class="ingredient-name">${ingredient.name}</span>
+                        </div>
+                        <div class="ingredient-controls">
+                            <button class="qty-btn" data-action="decrease-ingredient" 
+                                    data-item-index="${index}" 
+                                    data-ingredient-id="${ingredient.id}">-</button>
+                            <span class="ingredient-qty">${ingredient.quantity}</span>
+                            <button class="qty-btn" data-action="increase-ingredient" 
+                                    data-item-index="${index}" 
+                                    data-ingredient-id="${ingredient.id}">+</button>
+                        </div>
+                        <span class="ingredient-price">+€${(ingredient.price * ingredient.quantity).toFixed(2)}</span>
+                        <button class="remove-ingredient-btn" data-action="remove-ingredient" 
+                                data-item-index="${index}" 
+                                data-ingredient-id="${ingredient.id}">×</button>
+                    </div>
+                `).join('')}
+            </div>
+        ` : '';
+
+        return `
+            <div class="pizza-ingredients" data-item-index="${index}">
+                <!-- Accordion Header -->
+                <div class="ingredients-accordion-header" data-action="toggle-ingredients" data-item-index="${index}">
+                    <span class="ingredients-accordion-label">Extra Ingredients</span>
+                    <span class="ingredients-accordion-icon ${item.ingredientsExpanded ? 'expanded' : ''}">▼</span>
+                </div>
+                
+                <!-- Accordion Content -->
+                <div class="ingredients-accordion-content ${item.ingredientsExpanded ? 'expanded' : ''}">
+                    <!-- Available ingredients list -->
+                    <div class="available-ingredients-list">
+                        ${item.availableIngredients.map(ingredient => {
+                            const isAlreadySelected = item.extraIngredients && 
+                                                   item.extraIngredients.some(ei => ei.id === ingredient.id);
+                            return `
+                                <div class="available-ingredient-item ${isAlreadySelected ? 'selected' : ''}" 
+                                     data-action="add-ingredient" 
+                                     data-item-index="${index}" 
+                                     data-ingredient-id="${ingredient.id}">
+                                    <div class="ingredient-info">
+                                        <img class="ingredient-image" src="${ingredient.image}" alt="${ingredient.name}" />
+                                        <span class="available-ingredient-name">${ingredient.name}</span>
+                                    </div>
+                                    <span class="available-ingredient-price">+€${ingredient.price.toFixed(2)}</span>
+                                    ${isAlreadySelected ? '<span class="ingredient-selected-icon">✓</span>' : ''}
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                    
+                    <!-- Selected ingredients management -->
+                    ${selectedIngredients}
+                </div>
+            </div>
+        `;
+    }
+
+    // Handle pizza size change
+    handleSizeChange(itemIndex, sizeId) {
+        if (itemIndex < 0 || itemIndex >= this.currentOrder.length) return;
+        
+        const item = this.currentOrder[itemIndex];
+        if (!this.isPizzaProduct(item) || !item.availableSizes) return;
+        
+        const newSize = item.availableSizes.find(size => size.id === sizeId);
+        if (!newSize) return;
+        
+        // Update item size
+        item.size = { ...newSize };
+        
+        // Update cart display to reflect new price
+        this.updateCartDisplay();
+        
+        // Show feedback message
+        this.showMessage(`Pizza size changed to ${newSize.name}`, 'success');
+    }
+
+    // Handle adding ingredient to pizza
+    handleIngredientAdd(itemIndex, ingredientId) {
+        if (itemIndex < 0 || itemIndex >= this.currentOrder.length) return;
+        
+        const item = this.currentOrder[itemIndex];
+        if (!this.isPizzaProduct(item) || !item.availableIngredients) return;
+        
+        const ingredient = item.availableIngredients.find(ing => ing.id === parseInt(ingredientId));
+        if (!ingredient) return;
+        
+        // Check if ingredient is already added
+        const existingIngredient = item.extraIngredients.find(ei => ei.id === ingredient.id);
+        if (existingIngredient) {
+            // Increase quantity if already exists
+            existingIngredient.quantity += 1;
+        } else {
+            // Add new ingredient
+            if (!item.extraIngredients) item.extraIngredients = [];
+            item.extraIngredients.push({
+                ...ingredient,
+                quantity: 1
+            });
+            
+            // Auto-expand accordion when first ingredient is added
+            if (!item.ingredientsExpanded) {
+                item.ingredientsExpanded = true;
+            }
+        }
+        
+        // Update cart display
+        this.updateCartDisplay();
+        
+        // Show feedback message
+        this.showMessage(`Added ${ingredient.name} to pizza`, 'success');
+    }
+
+    // Handle removing ingredient from pizza
+    handleIngredientRemove(itemIndex, ingredientId) {
+        if (itemIndex < 0 || itemIndex >= this.currentOrder.length) return;
+        
+        const item = this.currentOrder[itemIndex];
+        if (!this.isPizzaProduct(item) || !item.extraIngredients) return;
+        
+        // Find and remove ingredient
+        const ingredientIndex = item.extraIngredients.findIndex(ei => ei.id === parseInt(ingredientId));
+        if (ingredientIndex !== -1) {
+            const removedIngredient = item.extraIngredients[ingredientIndex];
+            item.extraIngredients.splice(ingredientIndex, 1);
+            
+            // Update cart display
+            this.updateCartDisplay();
+            
+            // Show feedback message
+            this.showMessage(`Removed ${removedIngredient.name} from pizza`, 'success');
+        }
+    }
+
+    // Handle changing ingredient quantity
+    handleIngredientQuantityChange(itemIndex, ingredientId, action) {
+        if (itemIndex < 0 || itemIndex >= this.currentOrder.length) return;
+        
+        const item = this.currentOrder[itemIndex];
+        if (!this.isPizzaProduct(item) || !item.extraIngredients) return;
+        
+        const ingredient = item.extraIngredients.find(ei => ei.id === parseInt(ingredientId));
+        if (!ingredient) return;
+        
+        if (action === 'increase') {
+            ingredient.quantity += 1;
+        } else if (action === 'decrease') {
+            if (ingredient.quantity > 1) {
+                ingredient.quantity -= 1;
+            } else {
+                // Remove ingredient if quantity becomes 0
+                this.handleIngredientRemove(itemIndex, ingredientId);
+                return;
+            }
+        }
+        
+        // Update cart display
+        this.updateCartDisplay();
+    }
+
+    // Handle ingredients accordion toggle
+    handleIngredientsToggle(itemIndex) {
+        if (itemIndex < 0 || itemIndex >= this.currentOrder.length) return;
+        
+        const item = this.currentOrder[itemIndex];
+        if (!this.isPizzaProduct(item)) return;
+        
+        // Toggle expanded state
+        item.ingredientsExpanded = !item.ingredientsExpanded;
+        
+        // Update cart display to reflect new state
         this.updateCartDisplay();
     }
 
@@ -703,247 +1124,13 @@ class OrderCreationScreen {
         this.showMessage('Item removed from cart', 'info');
     }
 
-    showPizzaCustomization(pizza) {
-        this.showingCustomization = true;
-        this.customizationProduct = pizza;
-        this.selectedModifiers = [];
-        this.selectedPizzaSize = { id: '30cm', name: '30cm (Standard)', multiplier: 1.0 }; // Default size
-        this.updateProductDisplay();
-    }
 
-    hidePizzaCustomization() {
-        this.showingCustomization = false;
-        this.customizationProduct = null;
-        this.selectedModifiers = [];
-        this.selectedPizzaSize = null;
-        this.updateProductDisplay();
-    }
 
-    renderPizzaCustomization(pizza) {
-        // Define available ingredients
-        const availableIngredients = [
-            { id: 1, name: 'Extra Mozzarella', price: 2.50 },
-            { id: 2, name: 'Pepperoni', price: 3.00 },
-            { id: 3, name: 'Mushrooms', price: 2.00 },
-            { id: 4, name: 'Bell Peppers', price: 2.00 },
-            { id: 5, name: 'Red Onions', price: 1.50 },
-            { id: 6, name: 'Olives', price: 2.50 },
-            { id: 7, name: 'Tomatoes', price: 2.00 },
-            { id: 8, name: 'Basil', price: 1.50 },
-            { id: 9, name: 'Prosciutto', price: 4.00 },
-            { id: 10, name: 'Salami', price: 3.50 },
-            { id: 11, name: 'Arugula', price: 2.00 },
-            { id: 12, name: 'Parmesan', price: 3.00 }
-        ];
 
-        // Define pizza sizes with price multipliers
-        const availableSizes = [
-            { id: '30cm', name: '30cm (Standard)', multiplier: 1.0 },
-            { id: '40cm', name: '40cm (Large)', multiplier: 1.5 }
-        ];
 
-        if (!this.selectedModifiers) {
-            this.selectedModifiers = [];
-        }
 
-        if (!this.selectedPizzaSize) {
-            this.selectedPizzaSize = availableSizes[0]; // Default to 30cm
-        }
 
-        const basePrice = pizza.price * this.selectedPizzaSize.multiplier;
-        const modifiersTotal = this.selectedModifiers.reduce((sum, mod) => sum + mod.price, 0);
-        const currentTotal = basePrice + modifiersTotal;
 
-        return `
-            <div class="pizza-customization-view">
-                <div class="pizza-customization-header">
-                    <h2>Customize ${pizza.name}</h2>
-                    <button class="pizza-back-btn" data-action="back-to-products">← Back to Menu</button>
-                </div>
-                
-                <div class="pizza-customization-content">
-                    <div class="pizza-image-section">
-                        <img src="${pizza.image}" alt="${pizza.name}" class="pizza-image" />
-                        <div class="pizza-base-price">Base Price: €${basePrice.toFixed(2)}</div>
-                    </div>
-                    
-                    <div class="pizza-options-section">
-                        <div class="pizza-size-section">
-                            <h3>Pizza Size</h3>
-                            <div class="pizza-size-options">
-                                ${availableSizes.map(size => `
-                                    <div class="size-option ${this.selectedPizzaSize.id === size.id ? 'selected' : ''}" 
-                                         data-size-id="${size.id}">
-                                        <input type="radio" name="pizza-size" value="${size.id}" id="size-${size.id}"
-                                               ${this.selectedPizzaSize.id === size.id ? 'checked' : ''} />
-                                        <label for="size-${size.id}" class="size-label">
-                                            <span class="size-name">${size.name}</span>
-                                            <span class="size-price">€${(pizza.price * size.multiplier).toFixed(2)}</span>
-                                        </label>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                        
-                        <div class="pizza-ingredients-section">
-                            <h3>Additional Ingredients</h3>
-                            <div class="ingredients-grid">
-                                ${availableIngredients.map(ingredient => `
-                                    <div class="ingredient-item" data-ingredient-id="${ingredient.id}">
-                                        <label class="ingredient-checkbox">
-                                            <input type="checkbox" name="ingredient" value="${ingredient.id}" 
-                                                   ${this.selectedModifiers.some(mod => mod.id === ingredient.id) ? 'checked' : ''} />
-                                            <span class="checkmark"></span>
-                                            <span class="ingredient-name">${ingredient.name}</span>
-                                            <span class="ingredient-price">+€${ingredient.price.toFixed(2)}</span>
-                                        </label>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="pizza-customization-footer">
-                    <div class="pizza-total">
-                        <span>Total: €<span id="pizza-total-amount">${currentTotal.toFixed(2)}</span></span>
-                    </div>
-                    <div class="pizza-actions">
-                        <button class="pizza-cancel-btn" data-action="back-to-products">Cancel</button>
-                        <button class="pizza-add-btn" data-action="add-custom-pizza">Add to Cart</button>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    addCustomPizzaToCart() {
-        if (!this.customizationProduct || !this.selectedPizzaSize) return;
-        
-        const basePrice = this.customizationProduct.price * this.selectedPizzaSize.multiplier;
-        const modifiersTotal = this.selectedModifiers.reduce((sum, mod) => sum + mod.price, 0);
-        const total = basePrice + modifiersTotal;
-        
-        const customizedPizza = {
-            id: this.customizationProduct.id,
-            name: `${this.customizationProduct.name} (${this.selectedPizzaSize.name})`,
-            basePrice: this.customizationProduct.price,
-            price: this.customizationProduct.price,
-            itemTotal: total,
-            quantity: 1,
-            modifiers: this.selectedModifiers,
-            size: this.selectedPizzaSize,
-            category: this.customizationProduct.category,
-            image: this.customizationProduct.image
-        };
-
-        this.currentOrder.push(customizedPizza);
-        this.updateCartDisplay();
-        
-        const sizeInfo = this.selectedPizzaSize.name;
-        const modifierNames = this.selectedModifiers.length > 0 ? ` with ${this.selectedModifiers.map(m => m.name).join(', ')}` : '';
-        this.showMessage(`Added ${this.customizationProduct.name} ${sizeInfo}${modifierNames} to cart`, 'success');
-        
-        // Return to product view
-        this.hidePizzaCustomization();
-    }
-
-    handleIngredientSelection(checkbox) {
-        const availableIngredients = [
-            { id: 1, name: 'Extra Mozzarella', price: 2.50 },
-            { id: 2, name: 'Pepperoni', price: 3.00 },
-            { id: 3, name: 'Mushrooms', price: 2.00 },
-            { id: 4, name: 'Bell Peppers', price: 2.00 },
-            { id: 5, name: 'Red Onions', price: 1.50 },
-            { id: 6, name: 'Olives', price: 2.50 },
-            { id: 7, name: 'Tomatoes', price: 2.00 },
-            { id: 8, name: 'Basil', price: 1.50 },
-            { id: 9, name: 'Prosciutto', price: 4.00 },
-            { id: 10, name: 'Salami', price: 3.50 },
-            { id: 11, name: 'Arugula', price: 2.00 },
-            { id: 12, name: 'Parmesan', price: 3.00 }
-        ];
-
-        const ingredientId = parseInt(checkbox.value);
-        const ingredient = availableIngredients.find(ing => ing.id === ingredientId);
-        
-        if (!this.selectedModifiers) {
-            this.selectedModifiers = [];
-        }
-
-        if (checkbox.checked) {
-            if (!this.selectedModifiers.some(mod => mod.id === ingredientId)) {
-                this.selectedModifiers.push(ingredient);
-            }
-        } else {
-            this.selectedModifiers = this.selectedModifiers.filter(mod => mod.id !== ingredientId);
-        }
-
-        // Update total price display
-        this.updatePizzaTotalDisplay();
-    }
-
-    handleSizeSelection(radioButton) {
-        const availableSizes = [
-            { id: '30cm', name: '30cm (Standard)', multiplier: 1.0 },
-            { id: '40cm', name: '40cm (Large)', multiplier: 1.5 }
-        ];
-
-        const sizeId = radioButton.value;
-        const selectedSize = availableSizes.find(size => size.id === sizeId);
-        
-        if (selectedSize) {
-            this.selectedPizzaSize = selectedSize;
-            
-            // Update visual selection
-            document.querySelectorAll('.size-option').forEach(option => {
-                option.classList.toggle('selected', option.dataset.sizeId === sizeId);
-            });
-            
-            // Update base price display
-            const basePriceElement = document.querySelector('.pizza-base-price');
-            if (basePriceElement && this.customizationProduct) {
-                const basePrice = this.customizationProduct.price * selectedSize.multiplier;
-                basePriceElement.textContent = `Base Price: €${basePrice.toFixed(2)}`;
-            }
-            
-            // Update total price
-            this.updatePizzaTotalDisplay();
-        }
-    }
-
-    updatePizzaTotalDisplay() {
-        if (!this.customizationProduct || !this.selectedPizzaSize) return;
-        
-        const basePrice = this.customizationProduct.price * this.selectedPizzaSize.multiplier;
-        const modifiersTotal = this.selectedModifiers.reduce((sum, mod) => sum + mod.price, 0);
-        const currentTotal = basePrice + modifiersTotal;
-        
-        const totalElement = document.getElementById('pizza-total-amount');
-        if (totalElement) {
-            totalElement.textContent = currentTotal.toFixed(2);
-        }
-    }
-
-    addCustomizedPizzaToCart(pizza, modifiers, total) {
-        const customizedPizza = {
-            id: pizza.id,
-            name: pizza.name,
-            basePrice: pizza.price,
-            price: pizza.price,
-            itemTotal: total,
-            quantity: 1,
-            modifiers: modifiers,
-            category: pizza.category,
-            image: pizza.image
-        };
-
-        this.currentOrder.push(customizedPizza);
-        this.updateCartDisplay();
-        
-        const modifierNames = modifiers.length > 0 ? ` with ${modifiers.map(m => m.name).join(', ')}` : '';
-        this.showMessage(`Added ${pizza.name}${modifierNames} to cart`, 'success');
-    }
 
     async handleAction(action) {
         switch (action) {
@@ -972,10 +1159,7 @@ class OrderCreationScreen {
                 await this.handleCancelOrder();
                 break;
             case 'back-to-products':
-                this.hidePizzaCustomization();
-                break;
-            case 'add-custom-pizza':
-                this.addCustomPizzaToCart();
+                // No longer needed with inline customization
                 break;
             case 'confirm-order':
                 this.confirmOrder();
@@ -1266,7 +1450,6 @@ class OrderCreationScreen {
     destroy() {
         // Clear any active intervals or listeners
         this.isProcessingOrder = false;
-        this.showingCustomization = false;
         
         // Clear current order if not saved
         if (this.mode === 'create') {

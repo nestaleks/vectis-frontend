@@ -234,24 +234,11 @@ class VectHomeScreenV2 {
 
     async showOrderHistory() {
         try {
-            const orderHistoryResult = await componentLoader.createComponent('order-history', {}, {
-                eventBus: this.eventBus
-            });
-
-            // Replace current content with order history
-            const mainContainer = document.getElementById('app');
-            if (mainContainer) {
-                mainContainer.innerHTML = '';
-                mainContainer.appendChild(orderHistoryResult.element);
-                
-                // Handle back to POS event
-                orderHistoryResult.component.on('order-history:back-to-pos', () => {
-                    this.app.loadVectTheme(); // Reload main POS view
-                });
-            }
+            // Navigate to orders list screen
+            await this.app.navigateToScreen('orders-list');
         } catch (error) {
-            console.error('Failed to load order history:', error);
-            this.showMessage('Failed to load order history', 'error');
+            console.error('Failed to load orders list:', error);
+            this.showMessage('Failed to load orders list', 'error');
         }
     }
 

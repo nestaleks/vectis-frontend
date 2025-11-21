@@ -176,13 +176,32 @@ class OrderDetailsModal {
      * Render a single order item
      */
     renderOrderItem(item) {
-        const itemTotal = (item.price || 0) * (item.quantity || 0);
+        const itemTotal = item.itemTotal || (item.price || 0) * (item.quantity || 0);
         
         return `
             <div class="item-row">
                 <div class="item-name-col">
                     <div class="item-name">${item.name || 'Unknown Item'}</div>
                     ${item.description ? `<div class="item-description">${item.description}</div>` : ''}
+                    
+                    ${item.size ? `
+                        <div class="item-size">
+                            <span class="size-badge">Size: ${item.size.name}</span>
+                        </div>
+                    ` : ''}
+                    
+                    ${item.extraIngredients && item.extraIngredients.length > 0 ? `
+                        <div class="item-extra-ingredients">
+                            <div class="extras-title">Extra ingredients:</div>
+                            ${item.extraIngredients.map(ingredient => `
+                                <span class="extra-ingredient-badge">
+                                    +${ingredient.name} ${ingredient.quantity > 1 ? `x${ingredient.quantity}` : ''} 
+                                    (+€${(ingredient.price * ingredient.quantity).toFixed(2)})
+                                </span>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    
                     ${item.customizations && item.customizations.length > 0 ? `
                         <div class="item-customizations">
                             ${item.customizations.map(c => `<span class="customization">${c}</span>`).join(', ')}
@@ -373,10 +392,18 @@ class OrderDetailsModal {
                     <tbody>
                         ${this.order.items?.map(item => `
                             <tr>
-                                <td>${item.name}</td>
+                                <td>
+                                    ${item.name}
+                                    ${item.size ? `<br><small>Size: ${item.size.name}</small>` : ''}
+                                    ${item.extraIngredients && item.extraIngredients.length > 0 ? `
+                                        <br><small>Extras: ${item.extraIngredients.map(ing => 
+                                            `+${ing.name}${ing.quantity > 1 ? ` x${ing.quantity}` : ''}`
+                                        ).join(', ')}</small>
+                                    ` : ''}
+                                </td>
                                 <td>${item.quantity}</td>
                                 <td>€${item.price?.toFixed(2)}</td>
-                                <td>€${((item.price || 0) * (item.quantity || 0)).toFixed(2)}</td>
+                                <td>€${(item.itemTotal || (item.price || 0) * (item.quantity || 0)).toFixed(2)}</td>
                             </tr>
                         `).join('') || ''}
                     </tbody>

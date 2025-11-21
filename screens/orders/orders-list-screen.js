@@ -25,6 +25,7 @@ class OrdersListScreen {
         this.handleNewOrder = this.handleNewOrder.bind(this);
         this.handleOrderAction = this.handleOrderAction.bind(this);
         this.refreshOrders = this.refreshOrders.bind(this);
+        this.handleHeaderAction = this.handleHeaderAction.bind(this);
 
         // Listen for order updates
         this.orderManager.on('ordersUpdated', this.refreshOrders);
@@ -38,21 +39,6 @@ class OrdersListScreen {
 
         return `
             <div class="orders-list-screen">
-                <!-- Header -->
-                <div class="orders-header">
-                    <div class="orders-header-left">
-                        <div class="orders-logo">Vectis POS</div>
-                        <div class="orders-title">Orders Management</div>
-                    </div>
-                    
-                    <div class="orders-header-right">
-                        <button class="new-order-btn" data-action="new-order">
-                            <span class="new-order-icon">+</span>
-                            <span class="new-order-text">New Order</span>
-                        </button>
-                    </div>
-                </div>
-
                 <!-- Controls -->
                 <div class="orders-controls">
                     <div class="orders-controls-left">
@@ -108,6 +94,21 @@ class OrdersListScreen {
                 ${this.filteredOrders.length === 0 ? this.renderEmptyState() : ''}
             </div>
         `;
+    }
+
+    renderOrderTabs() {
+        const tabs = [
+            { id: 'current', name: 'Order Items', badge: 0 },
+            { id: 'orders', name: 'Orders', badge: this.orders.length }
+        ];
+
+        return tabs.map(tab => `
+            <button class="vect-order-tab ${tab.id === 'orders' ? 'active' : ''}" 
+                    data-tab="${tab.id}">
+                ${tab.name}
+                ${tab.badge > 0 ? `<span class="vect-order-tab-badge">${tab.badge}</span>` : ''}
+            </button>
+        `).join('');
     }
 
     async loadOrders() {
@@ -323,6 +324,13 @@ class OrdersListScreen {
             sortSelect.addEventListener('change', this.handleSort);
         }
 
+        // Tab switching
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('vect-order-tab')) {
+                this.handleTabSwitch(e.target.dataset.tab);
+            }
+        });
+
         // Direct button event listeners
         const newOrderBtn = document.querySelector('.new-order-btn[data-action="new-order"]');
         if (newOrderBtn) {
@@ -354,6 +362,17 @@ class OrdersListScreen {
         document.addEventListener('click', this.globalClickHandler);
     }
 
+    handleHeaderAction(action, buttonConfig) {
+        switch (action) {
+            case 'new-order':
+                this.handleNewOrder();
+                break;
+            default:
+                console.log('Unhandled header action:', action);
+                break;
+        }
+    }
+
     handleSearch(event) {
         this.searchQuery = event.target.value;
         this.applyFilters();
@@ -370,6 +389,38 @@ class OrdersListScreen {
         this.sortBy = event.target.value;
         this.applyFilters();
         this.updateOrdersList();
+    }
+
+    handleTabSwitch(tabId) {
+        // Update active tab UI
+        document.querySelectorAll('.vect-order-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.tab === tabId);
+        });
+
+        // Handle tab switching logic
+        switch (tabId) {
+            case 'current':
+                this.navigateToOrderCreation();
+                break;
+            case 'orders':
+                // Already on Orders tab - no action needed
+                break;
+        }
+    }
+
+    async navigateToOrderCreation() {
+        try {
+            // Navigate to order creation screen
+            await this.app.navigateToScreen('order-creation', { mode: 'create' });
+        } catch (error) {
+            console.error('Failed to navigate to order creation:', error);
+            this.showMessage('Failed to navigate to order creation', 'error');
+            
+            // Reset tab selection to orders
+            document.querySelectorAll('.vect-order-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.tab === 'orders');
+            });
+        }
     }
 
     async handleOrderAction(action, element) {
@@ -585,6 +636,21 @@ class OrdersListScreen {
                         <div class="item-details-name">
                             <strong>${item.name || 'Unknown Item'}</strong>
                             ${item.description ? `<br><small>${item.description}</small>` : ''}
+                            
+                            ${item.size ? `
+                                <br><span class="size-badge">Size: ${item.size.name}</span>
+                            ` : ''}
+                            
+                            ${item.extraIngredients && item.extraIngredients.length > 0 ? `
+                                <br><small class="extras-title">Extra ingredients:</small>
+                                <br>${item.extraIngredients.map(ingredient => `
+                                    <span class="extra-ingredient-badge">
+                                        +${ingredient.name} ${ingredient.quantity > 1 ? `x${ingredient.quantity}` : ''} 
+                                        (+€${(ingredient.price * ingredient.quantity).toFixed(2)})
+                                    </span>
+                                `).join('')}
+                            ` : ''}
+                            
                             ${item.customizations && item.customizations.length > 0 ? `
                                 <br><small class="customizations">+ ${item.customizations.join(', ')}</small>
                             ` : ''}
@@ -596,7 +662,7 @@ class OrdersListScreen {
                             €${(item.price || 0).toFixed(2)} each
                         </div>
                         <div class="item-details-total">
-                            <strong>€${((item.price || 0) * (item.quantity || 0)).toFixed(2)}</strong>
+                            <strong>€${((item.itemTotal || (item.price || 0) * (item.quantity || 0))).toFixed(2)}</strong>
                         </div>
                     </div>
                 `).join('')}

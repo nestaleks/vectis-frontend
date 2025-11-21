@@ -29,7 +29,10 @@ class VectHomeScreen {
                     </div>
                     
                     <div class="vect-header-center">
-                        <!-- Header Center Content -->
+                        <!-- Order Tabs -->
+                        <div class="vect-order-tabs" id="vect-order-tabs">
+                            ${this.renderOrderTabs()}
+                        </div>
                     </div>
                     
                     <div class="vect-header-right">
